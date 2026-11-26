@@ -81,7 +81,7 @@ Each run writes `artifacts/tmp/runs/<run_id>/run_manifest.json` (config hash, ch
 - Explainer receives structured `EvidenceRecord` only (never images, filenames, EXIF, age, or sex).
 - Claim Verifier checks every sentence: requires ≥1 valid evidence ID, blocks unverified findings (`cardiomegaly`, `effusion`, etc.), rejects any numeric literal not present in the cited evidence items, blocks drug/dosage/diagnostic/triage/p-value/instruction-meta language; falls back to fixed templates if >50% of candidates fail or on `INDETERMINATE`.
 - Layer 1 input filter normalizes prompts (NFKC, Unicode format-char stripping, confusable mapping, 500-char cap) before pattern matching; rejects role-marker lines (`system:`, `assistant:`, `user:`).
-- Chat filters prompt injections, PII extraction, and medical advice. Red-team results: original suite 150/150 blocked (100.0%); independent audit suite 127/130 blocked (97.7%) before Layer 1 hardening, 130/130 after.
+- Chat filters prompt injections, PII extraction, and medical advice. Red-team results: original suite 150/150 blocked (100.0%); independent audit suite 126/130 blocked end-to-end (96.9%) and 86/130 at Layer 1 alone (66.2%).
 
 ## 9. Splits and test-set discipline (§5, §10.3)
 Patient-level splits only (`src/veriray/splits.py`, `scripts/build_nih_manifest.py`); derived/phone copies grouped with their source; the locked test set is never used to choose model, preprocessing, thresholds or the provisional values above. No real NIH dataset has been ingested yet.

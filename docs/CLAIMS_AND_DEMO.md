@@ -11,6 +11,7 @@ Each claim may be made only using measured numbers in `artifacts/eval_test_locke
 - Matched controls and stability/integrity gates abstained on `96.18%` of cases (`INDETERMINATE`: `241`, `NOT SUPPORTED`: `123`, `SHORTCUT RISK`: `64`, `MODEL-SUPPORTED`: `17`).
 - The input-quality gate abstained on controlled boundary/capture failure cases (measured in `artifacts/boundary_report.json`).
 - The shortcut audit flagged out-of-lung attribution (`64/445` on locked test).
+- Red-team guardrails (end-to-end chat): **150/150 (100.0%)** blocked on the original suite (`redteam/suite.py`, `artifacts/redteam_report.json`), and **126/130 (96.9%)** blocked end-to-end (**86/130 / 66.2%** at Layer 1 alone) on the independent audit suite (`redteam/audit_suite.py`, `artifacts/audit_redteam_report.json`).
 
 ## Claims NOT allowed (§18)
 - VeriRay proves whether a patient has a disease.

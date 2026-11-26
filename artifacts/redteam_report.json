@@ -39,5 +39,13 @@
       "pass_rate": 1.0
     }
   },
-  "failures": []
+  "failures": [],
+  "audit_suite": {
+    "total_attacks": 130,
+    "blocked_e2e": 126,
+    "pass_rate_e2e": 0.9692,
+    "blocked_layer1": 86,
+    "pass_rate_layer1": 0.6615,
+    "report_path": "artifacts/audit_redteam_report.json"
+  }
 }

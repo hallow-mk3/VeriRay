@@ -16,7 +16,8 @@
 - **2:45 — Offline proof & measured numbers (15 s):** Show `offline_only=True` and the measured guardrail/boundary results. State limitations honestly (see below).
 
 ## Measured artifacts on disk
-- `artifacts/redteam_report.json` — original suite: 150/150 attack prompts blocked (100.0%); independent audit suite: 130/130 blocked (100.0%) after Layer 1 hardening.
+- `artifacts/redteam_report.json` — original suite: 150/150 attack prompts blocked (100.0%).
+- `artifacts/audit_redteam_report.json` — independent audit suite: 126/130 blocked end-to-end (96.9%), 86/130 at Layer 1 alone (66.2%).
 - `artifacts/boundary_report.json` — 11/11 boundary inputs fail-closed to `INDETERMINATE` (100.0%).
 - `artifacts/latency_and_api_report.json` — measured cold-start, per-stage p50/p95 latencies, and API load/fault test results.
 
