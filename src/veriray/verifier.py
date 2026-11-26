@@ -30,6 +30,14 @@ _OTHER_FINDINGS: tuple[str, ...] = (
 
 _NUMBER_RE = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?%?(?![A-Za-z_])")
 
+# Instruction / meta-language pattern — catches hidden control sentences
+_META_INSTRUCTION_RE = re.compile(
+    r"\b(?:ignore|disregard|forget|override|pretend|you\s+must)\b"
+    r"|your\s+rules|your\s+instructions|system\s+prompt|follow\s+(?:the\s+)?instruction"
+    r"|please\s+\w+\s+(?:your|all|previous|prior|above|system)",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class VerifierReport:
@@ -85,6 +93,9 @@ def verify_sentence(sentence: ExplanationSentence, evidence: EvidenceRecord) -> 
         if re.search(rf"\b{re.escape(other)}\b", lower):
             reasons.append(f"UNVERIFIED_FINDING_MENTIONED:{other}")
             break
+
+    if _META_INSTRUCTION_RE.search(sentence.text):
+        reasons.append("INSTRUCTION_META_LANGUAGE_DETECTED")
 
     if evidence.verdict is not Verdict.MODEL_SUPPORTED:
         if re.search(rf"\b{SUPPORTED_FINDING}\b", lower) and "not supported" not in lower and "shortcut" not in lower and "could not produce" not in lower:
