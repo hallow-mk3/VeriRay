@@ -23,7 +23,7 @@ Each claim may be made only using measured numbers in `artifacts/eval_test_locke
 - Verdicts: `MODEL-SUPPORTED`, `NOT SUPPORTED`, `SHORTCUT RISK`, `INDETERMINATE` only. Never PROVEN, DISEASE CONFIRMED, NORMAL, CLEAR or RULED OUT.
 - Say "model score", never "probability of disease". Say "heatmap shows a candidate region", never "shows the disease".
 - Do not call empirical control ranks p-values. Anatomical matching does not make a control region a guaranteed negative.
-- Every edited image is labelled **SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN** (no edits exist yet).
+- Every edited image is labelled **SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN**.
 - Mandatory on-screen text in the interface: "Score and heatmap describe model behaviour, not a diagnosis. Research prototype — not for clinical use."
 
 ## Demo rules (§12.3)
