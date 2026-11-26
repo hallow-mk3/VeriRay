@@ -12,9 +12,46 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import unicodedata
 from typing import Iterable
 
 from veriray.contracts import RESEARCH_DISCLAIMER, EvidenceRecord, Verdict, validate_safe_language
+
+# ---------------------------------------------------------------------------
+# Layer 1 normalisation helpers
+# ---------------------------------------------------------------------------
+
+_MAX_PROMPT_LEN: int = 500
+
+# Confusable-to-ASCII skeleton map (Cyrillic homoglyphs + fullwidth ASCII).
+_CONFUSABLE_MAP: dict[int, str] = {
+    # Cyrillic homoglyphs
+    0x0430: "a", 0x0435: "e", 0x043E: "o", 0x0440: "p", 0x0441: "c",
+    0x0456: "i", 0x0410: "A", 0x0415: "E", 0x041E: "O", 0x0420: "P",
+    0x0421: "C", 0x0406: "I",
+    # Fullwidth ASCII (U+FF01 … U+FF5E → ! … ~)
+    **{0xFF01 + i: chr(0x21 + i) for i in range(94)},
+}
+
+
+def _normalize_prompt(text: str) -> str:
+    """NFKC-normalize, strip Unicode format chars (Cf), map confusables, collapse whitespace, lowercase."""
+    # 1. NFKC normalization (decomposes fullwidth, ligatures, etc.)
+    text = unicodedata.normalize("NFKC", text)
+    # 2. Strip Unicode format characters (category Cf: zero-width, soft hyphen, BOM, etc.)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    # 3. Map confusables to ASCII skeleton
+    text = text.translate(_CONFUSABLE_MAP)
+    # 4. Collapse whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    # 5. Lowercase
+    return text.lower()
+
+
+# Role-marker lines: "system:", "assistant:", "user:" at the start of a line.
+_ROLE_MARKER_RE = re.compile(
+    r"(?:^|\n)\s*(?:system|assistant|user)\s*:", re.IGNORECASE
+)
 
 REFUSAL_MEDICAL_ADVICE = (
     "Request refused: VeriRay tests chest X-ray model behaviour for research and education only "
@@ -124,26 +161,43 @@ def check_output_safety(text: str) -> SafetyCheckResult:
 
 
 def classify_user_prompt(prompt: str) -> SafetyCheckResult:
-    """Layer 1 input filter for injections, PII extraction, diagnosis/dosage/treatment requests."""
+    """Layer 1 input filter — normalizes then checks for injections, PII, diagnosis/dosage/treatment.
+
+    Hardening sequence (applied before pattern matching):
+      1. Hard length cap (500 characters raw) → PROMPT_TOO_LONG
+      2. NFKC normalization + Unicode format-char (Cf) stripping
+      3. Confusable-to-ASCII mapping (Cyrillic homoglyphs, fullwidth)
+      4. Whitespace collapse + lowercase
+      5. Role-marker line detection (system:, assistant:, user:)
+      6. All injection / drug / clinical-action patterns on the normalized text
+    """
     if not isinstance(prompt, str) or not prompt.strip():
         return SafetyCheckResult(False, "empty", ("EMPTY_PROMPT",))
+    # Hard length cap (applied to raw prompt before any normalization)
+    if len(prompt) > _MAX_PROMPT_LEN:
+        return SafetyCheckResult(False, "injection", ("PROMPT_TOO_LONG",))
+    # Normalize for pattern matching
+    normalized = _normalize_prompt(prompt)
     reasons: list[str] = []
-    for pat in _INJECTION_PATTERNS:
-        if pat.search(prompt):
-            reasons.append("PROMPT_INJECTION_OR_EXTRACTION")
-            break
+    # Role-marker injection check (on both raw and normalized to catch multi-line variants)
+    if _ROLE_MARKER_RE.search(prompt) or _ROLE_MARKER_RE.search(normalized):
+        reasons.append("PROMPT_INJECTION_OR_EXTRACTION")
+    # Injection patterns on normalized text
+    if not reasons:
+        for pat in _INJECTION_PATTERNS:
+            if pat.search(normalized):
+                reasons.append("PROMPT_INJECTION_OR_EXTRACTION")
+                break
     for pat in _DRUG_OR_DOSAGE_PATTERNS:
-        if pat.search(prompt):
+        if pat.search(normalized):
             reasons.append("MEDICAL_DRUG_OR_DOSAGE_REQUEST")
             break
     for pat in _CLINICAL_ACTION_PATTERNS:
-        if pat.search(prompt):
+        if pat.search(normalized):
             reasons.append("MEDICAL_ADVICE_OR_DIAGNOSIS_REQUEST")
             break
-    # Also catch explicit diagnosis/triage/treatment words unless asking educational definitions
-    lower = prompt.lower()
-    if any(w in lower for w in ("diagnos", "triage", "prescription", "cure me", "what disease do i")):
-        if "what does" not in lower and "not a diagnosis" not in lower:
+    if any(w in normalized for w in ("diagnos", "triage", "prescription", "cure me", "what disease do i")):
+        if "what does" not in normalized and "not a diagnosis" not in normalized:
             reasons.append("MEDICAL_DIAGNOSIS_REQUEST")
     if reasons:
         cat = "injection" if "PROMPT_INJECTION_OR_EXTRACTION" in reasons else "medical_refusal"
