@@ -1,0 +1,337 @@
+{
+  "note": "NIH ChestX-ray14 LOCKED TEST SPLIT (frozen configs/frozen.yaml; weak report-mined labels)",
+  "verdict_counts": {
+    "INDETERMINATE": 241,
+    "NOT SUPPORTED": 123,
+    "SHORTCUT RISK": 64,
+    "MODEL-SUPPORTED": 17
+  },
+  "reader_metrics": {
+    "n": 445,
+    "positives": 245,
+    "threshold": 0.5,
+    "auroc": 0.7491224489795918,
+    "auprc": 0.7619569844794303,
+    "brier": 0.22569555137809139,
+    "sensitivity": 0.5877551020408164,
+    "specificity": 0.78,
+    "ppv": 0.7659574468085106,
+    "npv": 0.6070038910505836
+  },
+  "risk_coverage_comparison": {
+    "n": 445,
+    "operating_point": {
+      "full_judge": {
+        "n": 445,
+        "accepted_count": 17,
+        "abstention_count": 428,
+        "coverage": 0.038202247191011236,
+        "abstention_rate": 0.9617977528089887,
+        "precision": 0.9411764705882353,
+        "risk": 0.05882352941176472,
+        "precision_ci95": [
+          0.8207219251336898,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      "reader_at_same_coverage": {
+        "n": 445,
+        "accepted_count": 17,
+        "abstention_count": 428,
+        "coverage": 0.038202247191011236,
+        "abstention_rate": 0.9617977528089887,
+        "precision": 0.8823529411764706,
+        "risk": 0.11764705882352944,
+        "precision_ci95": [
+          0.7246212121212121,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      "precision_delta_judge_minus_reader": 0.05882352941176472
+    },
+    "matched_coverages": [
+      {
+        "target_coverage": 0.25,
+        "reader_only": {
+          "n": 445,
+          "accepted_count": 111,
+          "abstention_count": 334,
+          "coverage": 0.24943820224719102,
+          "abstention_rate": 0.750561797752809,
+          "precision": 0.7747747747747747,
+          "risk": 0.22522522522522526,
+          "precision_ci95": [
+            0.6941891891891893,
+            0.8510808066154069
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.038202247191011236,
+          "accepted_count": 17
+        }
+      },
+      {
+        "target_coverage": 0.5,
+        "reader_only": {
+          "n": 445,
+          "accepted_count": 222,
+          "abstention_count": 223,
+          "coverage": 0.49887640449438203,
+          "abstention_rate": 0.5011235955056179,
+          "precision": 0.7207207207207207,
+          "risk": 0.2792792792792793,
+          "precision_ci95": [
+            0.6576750609843593,
+            0.7818219461697722
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.038202247191011236,
+          "accepted_count": 17
+        }
+      },
+      {
+        "target_coverage": 0.75,
+        "reader_only": {
+          "n": 445,
+          "accepted_count": 334,
+          "abstention_count": 111,
+          "coverage": 0.750561797752809,
+          "abstention_rate": 0.24943820224719104,
+          "precision": 0.6616766467065869,
+          "risk": 0.3383233532934131,
+          "precision_ci95": [
+            0.6166618889271108,
+            0.7210084795523625
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.038202247191011236,
+          "accepted_count": 17
+        }
+      }
+    ]
+  },
+  "ablations": {
+    "n": 445,
+    "configurations": [
+      {
+        "configuration": "A. Reader only (matched coverage)",
+        "n": 445,
+        "accepted_count": 17,
+        "abstention_count": 428,
+        "coverage": 0.038202247191011236,
+        "abstention_rate": 0.9617977528089887,
+        "precision": 0.8823529411764706,
+        "risk": 0.11764705882352944,
+        "precision_ci95": [
+          0.7246212121212121,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      {
+        "configuration": "B. Reader + Grad-CAM display",
+        "n": 445,
+        "accepted_count": 17,
+        "abstention_count": 428,
+        "coverage": 0.038202247191011236,
+        "abstention_rate": 0.9617977528089887,
+        "precision": 0.8823529411764706,
+        "risk": 0.11764705882352944,
+        "precision_ci95": [
+          0.7246212121212121,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      {
+        "configuration": "C. Reader + single target edit",
+        "n": 445,
+        "accepted_count": 299,
+        "abstention_count": 146,
+        "coverage": 0.6719101123595506,
+        "abstention_rate": 0.32808988764044944,
+        "precision": 0.6421404682274248,
+        "risk": 0.35785953177257523,
+        "precision_ci95": [
+          0.5903428351309707,
+          0.7030805023965294
+        ],
+        "low_coverage_warning": false
+      },
+      {
+        "configuration": "D. C + uncalibrated/random controls",
+        "n": 445,
+        "accepted_count": 297,
+        "abstention_count": 148,
+        "coverage": 0.6674157303370787,
+        "abstention_rate": 0.3325842696629213,
+        "precision": 0.6430976430976431,
+        "risk": 0.35690235690235694,
+        "precision_ci95": [
+          0.5903497869318182,
+          0.7050858584113602
+        ],
+        "low_coverage_warning": false
+      },
+      {
+        "configuration": "E. D + matched controls",
+        "n": 445,
+        "accepted_count": 297,
+        "abstention_count": 148,
+        "coverage": 0.6674157303370787,
+        "abstention_rate": 0.3325842696629213,
+        "precision": 0.6430976430976431,
+        "risk": 0.35690235690235694,
+        "precision_ci95": [
+          0.5903497869318182,
+          0.7050858584113602
+        ],
+        "low_coverage_warning": false
+      },
+      {
+        "configuration": "F. E + stability & integrity gates (Full Judge)",
+        "n": 445,
+        "accepted_count": 17,
+        "abstention_count": 428,
+        "coverage": 0.038202247191011236,
+        "abstention_rate": 0.9617977528089887,
+        "precision": 0.9411764705882353,
+        "risk": 0.05882352941176472,
+        "precision_ci95": [
+          0.8207219251336898,
+          1.0
+        ],
+        "low_coverage_warning": false
+      }
+    ]
+  },
+  "fill_sensitivity": {
+    "n": 389,
+    "methods": [
+      "telea",
+      "gaussian_blur",
+      "mean_fill"
+    ],
+    "accept_counts": {
+      "telea": 299,
+      "gaussian_blur": 281,
+      "mean_fill": 286
+    },
+    "flip_count": 81,
+    "verdict_flip_rate": 0.20822622107969152
+  },
+  "localization_reporting_half": {
+    "total_cases_seen": 51,
+    "eligible_annotated_cases": 51,
+    "iou_success_threshold": 0.1,
+    "mean_iou": 0.09313634256699356,
+    "median_iou": 0.04150499706055261,
+    "pointing_game_accuracy": 0.058823529411764705,
+    "localization_success_rate": 0.3333333333333333,
+    "pointing_hits": 3,
+    "success_hits": 17
+  },
+  "experiment_5_claim_verifier": {
+    "cases_tested": 8,
+    "total_sentences_before_verifier": 4,
+    "dropped_by_verifier": 0,
+    "unsupported_rate_before_verifier": 0.0,
+    "unsupported_rate_after_verifier": 0.0
+  },
+  "latencies": {
+    "gate": {
+      "count": 445.0,
+      "p50_ms": 35.83200000139186,
+      "p95_ms": 38.898039998457534
+    },
+    "judge": {
+      "count": 444.0,
+      "p50_ms": 648.9766000013333,
+      "p95_ms": 1087.781614999403
+    },
+    "locator": {
+      "count": 444.0,
+      "p50_ms": 12.129600001571816,
+      "p95_ms": 15.011075000802519
+    },
+    "reader": {
+      "count": 444.0,
+      "p50_ms": 20.044700000653393,
+      "p95_ms": 22.44719000027544
+    },
+    "reader_load": {
+      "count": 445.0,
+      "p50_ms": 0.000100000761449337,
+      "p95_ms": 0.0002999986463692039
+    },
+    "end_to_end": {
+      "count": 445.0,
+      "p50_ms": 716.4646999990509,
+      "p95_ms": 1155.3220400004648
+    }
+  },
+  "subgroups_sex": {
+    "group_key": "sex",
+    "groups": {
+      "F": {
+        "n": 202,
+        "accepted_count": 8,
+        "acceptance_rate": 0.039603960396039604,
+        "accepted_precision": 1.0,
+        "reader_auroc": 0.7946570972886763
+      },
+      "M": {
+        "n": 243,
+        "accepted_count": 9,
+        "acceptance_rate": 0.037037037037037035,
+        "accepted_precision": 0.8888888888888888,
+        "reader_auroc": 0.7178298800436205
+      }
+    },
+    "limitations": "Measured subgroup gaps on available metadata only; no race data; does not claim zero bias."
+  },
+  "subgroups_age_band": {
+    "group_key": "age_band",
+    "groups": {
+      "30-49": {
+        "n": 165,
+        "accepted_count": 7,
+        "acceptance_rate": 0.04242424242424243,
+        "accepted_precision": 0.8571428571428571,
+        "reader_auroc": 0.7763041556145005
+      },
+      "50-69": {
+        "n": 185,
+        "accepted_count": 9,
+        "acceptance_rate": 0.04864864864864865,
+        "accepted_precision": 1.0,
+        "reader_auroc": 0.78
+      },
+      "70+": {
+        "n": 29,
+        "accepted_count": 0,
+        "acceptance_rate": 0.0,
+        "accepted_precision": null,
+        "reader_auroc": 0.6157894736842106
+      },
+      "<30": {
+        "n": 66,
+        "accepted_count": 1,
+        "acceptance_rate": 0.015151515151515152,
+        "accepted_precision": 1.0,
+        "reader_auroc": 0.6229338842975207
+      }
+    },
+    "limitations": "Measured subgroup gaps on available metadata only; no race data; does not claim zero bias."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case_id": "case_d_indeterminate",
+  "title": "Case D \u2014 INDETERMINATE (fail-closed on weak/diffuse localization)",
+  "precomputed_notice": "PRECOMPUTED DEMO OUTPUT (synthetic example \u2014 not a real patient scan)",
+  "synthetic_label": "SYNTHETIC COUNTERFACTUAL \u2014 NOT A REAL SCAN",
+  "verdict": "INDETERMINATE",
+  "reason_codes": [
+    "LOCALIZATION_DIFFUSE",
+    "JUDGE_LOCATOR_WEAK_OR_UNSTABLE"
+  ],
+  "has_counterfactual": false,
+  "evidence_items": {
+    "E01_MODEL_SCORE_RAW": 0.305,
+    "E02_VERDICT": "INDETERMINATE",
+    "E03_REASON_CODES": [
+      "LOCALIZATION_DIFFUSE",
+      "JUDGE_LOCATOR_WEAK_OR_UNSTABLE"
+    ],
+    "E04_TARGET_SCORE_DROP_PRIMARY": null,
+    "E06_CONTROL_COUNT": 0,
+    "E07_CONTROL_SCORE_DROP_MEDIAN": null,
+    "E08_EMPIRICAL_TAIL_FRACTION": null,
+    "E11_MASK_MIN_STABILITY_IOU": null,
+    "E12_UNRELATED_LABEL_MAX_DRIFT": null
+  },
+  "verified_explanation": [
+    {
+      "text": "The test could not produce a reliable result. Reason shown. Verdict: INDETERMINATE; reason codes: LOCALIZATION_DIFFUSE, JUDGE_LOCATOR_WEAK_OR_UNSTABLE.",
+      "evidence_ids": [
+        "E02_VERDICT",
+        "E03_REASON_CODES"
+      ]
+    }
+  ]
+}

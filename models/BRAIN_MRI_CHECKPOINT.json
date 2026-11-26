@@ -1,0 +1,53 @@
+{
+  "weights_id": "convnext_tiny-brain-mri-4cls",
+  "filename": "convnext_tiny-brain-mri-4cls.pt",
+  "sha256": "f04a32818b82853d261af81e60366d083ad71f97a35b2a0393f39ea0cecbdcff",
+  "classes": [
+    "glioma",
+    "meningioma",
+    "notumor",
+    "pituitary"
+  ],
+  "train_samples": 5600,
+  "test_samples": 1600,
+  "best_test_accuracy": 0.963125,
+  "classification_report": {
+    "glioma": {
+      "precision": 1.0,
+      "recall": 0.8625,
+      "f1-score": 0.9261744966442953,
+      "support": 400.0
+    },
+    "meningioma": {
+      "precision": 0.9189814814814815,
+      "recall": 0.9925,
+      "f1-score": 0.9543269230769231,
+      "support": 400.0
+    },
+    "notumor": {
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "f1-score": 0.975609756097561,
+      "support": 400.0
+    },
+    "pituitary": {
+      "precision": 0.9900744416873449,
+      "recall": 0.9975,
+      "f1-score": 0.9937733499377335,
+      "support": 400.0
+    },
+    "accuracy": 0.963125,
+    "macro avg": {
+      "precision": 0.9653592188874446,
+      "recall": 0.963125,
+      "f1-score": 0.9624711314391282,
+      "support": 1600.0
+    },
+    "weighted avg": {
+      "precision": 0.9653592188874447,
+      "recall": 0.963125,
+      "f1-score": 0.9624711314391281,
+      "support": 1600.0
+    }
+  }
+}

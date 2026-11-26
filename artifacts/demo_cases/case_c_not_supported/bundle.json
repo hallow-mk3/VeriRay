@@ -1,0 +1,44 @@
+{
+  "case_id": "case_c_not_supported",
+  "title": "Case C \u2014 NOT SUPPORTED (target drop indistinguishable from controls)",
+  "precomputed_notice": "PRECOMPUTED DEMO OUTPUT (synthetic example \u2014 not a real patient scan)",
+  "synthetic_label": "SYNTHETIC COUNTERFACTUAL \u2014 NOT A REAL SCAN",
+  "verdict": "NOT SUPPORTED",
+  "reason_codes": [
+    "TARGET_DROP_BELOW_THRESHOLD",
+    "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD"
+  ],
+  "has_counterfactual": true,
+  "evidence_items": {
+    "E01_MODEL_SCORE_RAW": 0.412,
+    "E02_VERDICT": "NOT SUPPORTED",
+    "E03_REASON_CODES": [
+      "TARGET_DROP_BELOW_THRESHOLD",
+      "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD"
+    ],
+    "E04_TARGET_SCORE_DROP_PRIMARY": 0.015,
+    "E06_CONTROL_COUNT": 19,
+    "E07_CONTROL_SCORE_DROP_MEDIAN": 0.014,
+    "E08_EMPIRICAL_TAIL_FRACTION": 0.45,
+    "E11_MASK_MIN_STABILITY_IOU": 0.79,
+    "E12_UNRELATED_LABEL_MAX_DRIFT": 0.005
+  },
+  "verified_explanation": [
+    {
+      "text": "The model's prediction was not supported by this test. This does not mean disease is absent. Reason codes: TARGET_DROP_BELOW_THRESHOLD, MARGIN_OVER_CONTROLS_BELOW_THRESHOLD.",
+      "evidence_ids": [
+        "E02_VERDICT",
+        "E03_REASON_CODES"
+      ]
+    },
+    {
+      "text": "For pneumothorax, the uncalibrated model score was 0.4120, and the target edit changed the score by 0.0150 compared with a median change of 0.0140 across 19 matched controls.",
+      "evidence_ids": [
+        "E01_MODEL_SCORE_RAW",
+        "E04_TARGET_SCORE_DROP_PRIMARY",
+        "E06_CONTROL_COUNT",
+        "E07_CONTROL_SCORE_DROP_MEDIAN"
+      ]
+    }
+  ]
+}

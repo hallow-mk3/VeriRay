@@ -1,0 +1,22 @@
+[
+  {
+    "case_id": "case_a_model_supported",
+    "title": "Case A \u2014 MODEL-SUPPORTED (synthetic demo example)",
+    "verdict": "MODEL-SUPPORTED"
+  },
+  {
+    "case_id": "case_b_shortcut_risk",
+    "title": "Case B \u2014 SHORTCUT RISK (out-of-lung cue; explanation withheld)",
+    "verdict": "SHORTCUT RISK"
+  },
+  {
+    "case_id": "case_c_not_supported",
+    "title": "Case C \u2014 NOT SUPPORTED (target drop indistinguishable from controls)",
+    "verdict": "NOT SUPPORTED"
+  },
+  {
+    "case_id": "case_d_indeterminate",
+    "title": "Case D \u2014 INDETERMINATE (fail-closed on weak/diffuse localization)",
+    "verdict": "INDETERMINATE"
+  }
+]

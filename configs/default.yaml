@@ -1,0 +1,40 @@
+# VeriRay v2.0 / SparkX HealGen S2 Provisional Default Configuration
+# PROVISIONAL: Set a priori before viewing test data. Never tune on the locked test set.
+finding: pneumothorax
+seed: 20261126
+
+reader:
+  weights_id: densenet121-res224-chex
+  preprocessing_id: xrv-centercrop-cv2area224-norm1024-v1
+
+locator:
+  locator_id: gradcampp-norm5-relu-v1
+  threshold: 0.5
+  opening_kernel: 5
+  closing_kernel: 5
+  min_component_frac: 0.005
+  min_area_frac: 0.005
+  max_area_frac: 0.50
+  near_full_frac: 0.90
+  diffuse_low_level: 0.25
+  diffuse_frac: 0.75
+  max_components: 3
+
+judge:
+  primary_fill_method: telea
+  comparison_fill_methods:
+    - gaussian_blur
+    - mean_fill
+  num_controls: 19
+  min_controls: 8
+  max_target_overlap: 0.10
+  control_area_tolerance: 0.25
+  min_target_drop: 0.03
+  min_margin_over_controls: 0.02
+  max_empirical_tail_fraction: 0.15
+  max_boundary_discontinuity: 0.35
+  max_unrelated_drift: 0.15
+  max_fill_method_spread: 0.25
+  min_mask_threshold_iou: 0.40
+  threshold_delta: 0.05
+  max_out_of_lung_fraction: 0.40

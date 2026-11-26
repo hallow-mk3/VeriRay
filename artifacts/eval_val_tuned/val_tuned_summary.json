@@ -1,0 +1,119 @@
+{
+  "reason_counts": {
+    "JUDGE_INSUFFICIENT_CONTROLS": 89,
+    "INSUFFICIENT_MATCHED_CONTROLS": 89,
+    "JUDGE_ALL_GATES_PASSED": 58,
+    "TARGET_DROP_BELOW_THRESHOLD": 38,
+    "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 26,
+    "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 40,
+    "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 57,
+    "JUDGE_LOCATOR_WEAK_OR_UNSTABLE": 47
+  },
+  "tuned_stats": {
+    "precision": 0.9473684210526315,
+    "coverage": 0.06333333333333334,
+    "accepted_count": 19
+  },
+  "comparison": {
+    "n": 300,
+    "operating_point": {
+      "full_judge": {
+        "n": 300,
+        "accepted_count": 19,
+        "abstention_count": 281,
+        "coverage": 0.06333333333333334,
+        "abstention_rate": 0.9366666666666666,
+        "precision": 0.9473684210526315,
+        "risk": 0.052631578947368474,
+        "precision_ci95": [
+          0.8144444444444444,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      "reader_at_same_coverage": {
+        "n": 300,
+        "accepted_count": 19,
+        "abstention_count": 281,
+        "coverage": 0.06333333333333334,
+        "abstention_rate": 0.9366666666666666,
+        "precision": 0.9473684210526315,
+        "risk": 0.052631578947368474,
+        "precision_ci95": [
+          0.8119791666666667,
+          1.0
+        ],
+        "low_coverage_warning": false
+      },
+      "precision_delta_judge_minus_reader": 0.0
+    },
+    "matched_coverages": [
+      {
+        "target_coverage": 0.25,
+        "reader_only": {
+          "n": 300,
+          "accepted_count": 75,
+          "abstention_count": 225,
+          "coverage": 0.25,
+          "abstention_rate": 0.75,
+          "precision": 0.84,
+          "risk": 0.16000000000000003,
+          "precision_ci95": [
+            0.7424120234604106,
+            0.9232142857142858
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.06333333333333334,
+          "accepted_count": 19
+        }
+      },
+      {
+        "target_coverage": 0.5,
+        "reader_only": {
+          "n": 300,
+          "accepted_count": 150,
+          "abstention_count": 150,
+          "coverage": 0.5,
+          "abstention_rate": 0.5,
+          "precision": 0.72,
+          "risk": 0.28,
+          "precision_ci95": [
+            0.6178140669467407,
+            0.8104575163398693
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.06333333333333334,
+          "accepted_count": 19
+        }
+      },
+      {
+        "target_coverage": 0.75,
+        "reader_only": {
+          "n": 300,
+          "accepted_count": 225,
+          "abstention_count": 75,
+          "coverage": 0.75,
+          "abstention_rate": 0.25,
+          "precision": 0.6,
+          "risk": 0.4,
+          "precision_ci95": [
+            0.5258468303726924,
+            0.685600608053608
+          ],
+          "low_coverage_warning": false
+        },
+        "full_judge": {
+          "attainable": false,
+          "coverage": 0.06333333333333334,
+          "accepted_count": 19
+        }
+      }
+    ]
+  }
+}

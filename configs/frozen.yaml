@@ -1,0 +1,39 @@
+frozen: true
+fitted_split: val
+finding: pneumothorax
+locator:
+  threshold: 0.5
+  opening_kernel: 5
+  closing_kernel: 5
+  min_component_frac: 0.005
+  min_area_frac: 0.005
+  max_area_frac: 0.5
+  near_full_frac: 0.9
+  diffuse_low_level: 0.25
+  diffuse_frac: 0.75
+  max_components: 3
+  epsilon: 1.0e-08
+judge:
+  primary_fill_method: telea
+  comparison_fill_methods:
+  - gaussian_blur
+  - mean_fill
+  num_controls: 19
+  min_controls: 8
+  max_target_overlap: 0.1
+  control_area_tolerance: 0.25
+  min_target_drop: 0.02
+  min_margin_over_controls: 0.01
+  max_empirical_tail_fraction: 0.1
+  min_reader_score: 0.8
+  max_boundary_discontinuity: 0.5
+  max_unrelated_drift: 0.5
+  max_fill_method_spread: 0.4
+  min_mask_threshold_iou: 0.4
+  threshold_delta: 0.05
+  max_out_of_lung_fraction: 0.4
+  seed: 20261126
+tuning_metadata:
+  precision: 0.9473684210526315
+  coverage: 0.06333333333333334
+  accepted_count: 19

@@ -1,0 +1,40 @@
+{
+  "case_id": "case_b_shortcut_risk",
+  "title": "Case B \u2014 SHORTCUT RISK (out-of-lung cue; explanation withheld)",
+  "precomputed_notice": "PRECOMPUTED DEMO OUTPUT (synthetic example \u2014 not a real patient scan)",
+  "synthetic_label": "SYNTHETIC COUNTERFACTUAL \u2014 NOT A REAL SCAN",
+  "verdict": "SHORTCUT RISK",
+  "reason_codes": [
+    "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION"
+  ],
+  "has_counterfactual": true,
+  "evidence_items": {
+    "E01_MODEL_SCORE_RAW": 0.681,
+    "E02_VERDICT": "SHORTCUT RISK",
+    "E03_REASON_CODES": [
+      "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION"
+    ],
+    "E04_TARGET_SCORE_DROP_PRIMARY": 0.195,
+    "E06_CONTROL_COUNT": 19,
+    "E07_CONTROL_SCORE_DROP_MEDIAN": 0.018,
+    "E08_EMPIRICAL_TAIL_FRACTION": 0.05,
+    "E11_MASK_MIN_STABILITY_IOU": 0.81,
+    "E12_UNRELATED_LABEL_MAX_DRIFT": 0.008
+  },
+  "verified_explanation": [
+    {
+      "text": "Possible reliance on a non-lung cue was detected. No diagnostic conclusion. Reason codes: SHORTCUT_OUT_OF_LUNG_ATTRIBUTION.",
+      "evidence_ids": [
+        "E02_VERDICT",
+        "E03_REASON_CODES"
+      ]
+    },
+    {
+      "text": "The Reader model score for pneumothorax was 0.6810; an explanation is withheld because a non-target cue flag was raised.",
+      "evidence_ids": [
+        "E01_MODEL_SCORE_RAW",
+        "E02_VERDICT"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "filename": "gated-unet-nofinding-224.pt",
+  "sha256": "a4bf714dd0d3f33cbc50ec267359837fa5957694c8f7f65d268579317b974091",
+  "base_ch": 32,
+  "trained_on": "NIH ChestX-ray14 train split 'No Finding' only (weak label, not certified healthy)",
+  "num_images": 500,
+  "epochs": 5
+}

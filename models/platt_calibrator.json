@@ -1,0 +1,8 @@
+{
+  "calibrator_id": "platt-val-v1",
+  "coef": 0.5029259076774764,
+  "intercept": 0.5657936083007971,
+  "fitted_split": "val",
+  "num_samples": 400,
+  "note": "Calibrated model score only; never a probability of disease."
+}

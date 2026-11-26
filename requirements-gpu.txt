@@ -1,0 +1,5 @@
+# CUDA PyTorch build (cu128 covers recent NVIDIA GPUs incl. RTX 50-series). Install with:
+#   python -m pip install -r requirements-gpu.txt
+# If your driver needs another CUDA build, change the index suffix (cu126, cu121, ...).
+--extra-index-url https://download.pytorch.org/whl/cu128
+-r requirements.txt

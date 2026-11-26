@@ -1,0 +1,109 @@
+{
+  "total_boundary_cases": 11,
+  "defined_fail_closed_count": 11,
+  "fail_closed_rate": 1.0,
+  "cases": [
+    {
+      "case": "corrupt_bytes",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "CORRUPT_OR_UNREADABLE_IMAGE"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "unsupported_extension",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "UNSUPPORTED_FILE_FORMAT"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "non_xray_color_scene",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "NON_RADIOGRAPH_HIGH_COLOR_SATURATION"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "tiny_dimensions",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "IMAGE_DIMENSIONS_TOO_SMALL"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "huge_dimensions",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "IMAGE_DIMENSIONS_TOO_LARGE"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "extreme_aspect_ratio",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_RETAKE",
+        "EXTREME_ASPECT_RATIO",
+        "EXCESSIVE_BLUR"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "too_dark_underexposed",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_RETAKE",
+        "IMAGE_TOO_DARK",
+        "LOW_CONTRAST_OR_BLANK_IMAGE",
+        "EXCESSIVE_BLUR"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "blank_low_contrast",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_RETAKE",
+        "LOW_CONTRAST_OR_BLANK_IMAGE",
+        "EXCESSIVE_BLUR"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "nan_pixels",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "NON_FINITE_PIXELS"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "lateral_view_metadata",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "GATE_REJECT",
+        "UNSUPPORTED_VIEW"
+      ],
+      "fail_closed": true
+    },
+    {
+      "case": "missing_model_weights",
+      "verdict": "INDETERMINATE",
+      "reason_codes": [
+        "READER_CHECKPOINT_MISSING"
+      ],
+      "fail_closed": true
+    }
+  ]
+}

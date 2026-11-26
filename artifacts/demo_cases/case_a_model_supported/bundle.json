@@ -1,0 +1,54 @@
+{
+  "case_id": "case_a_model_supported",
+  "title": "Case A \u2014 MODEL-SUPPORTED (synthetic demo example)",
+  "precomputed_notice": "PRECOMPUTED DEMO OUTPUT (synthetic example \u2014 not a real patient scan)",
+  "synthetic_label": "SYNTHETIC COUNTERFACTUAL \u2014 NOT A REAL SCAN",
+  "verdict": "MODEL-SUPPORTED",
+  "reason_codes": [
+    "JUDGE_ALL_GATES_PASSED"
+  ],
+  "has_counterfactual": true,
+  "evidence_items": {
+    "E01_MODEL_SCORE_RAW": 0.742,
+    "E02_VERDICT": "MODEL-SUPPORTED",
+    "E03_REASON_CODES": [
+      "JUDGE_ALL_GATES_PASSED"
+    ],
+    "E04_TARGET_SCORE_DROP_PRIMARY": 0.241,
+    "E06_CONTROL_COUNT": 19,
+    "E07_CONTROL_SCORE_DROP_MEDIAN": 0.0145,
+    "E08_EMPIRICAL_TAIL_FRACTION": 0.05,
+    "E11_MASK_MIN_STABILITY_IOU": 0.87,
+    "E12_UNRELATED_LABEL_MAX_DRIFT": 0.006
+  },
+  "verified_explanation": [
+    {
+      "text": "The model's prediction was supported by this test. This is not a diagnosis.",
+      "evidence_ids": [
+        "E02_VERDICT"
+      ]
+    },
+    {
+      "text": "The Reader model score for pneumothorax was 0.7420, and editing the candidate region lowered the model score by 0.2410.",
+      "evidence_ids": [
+        "E01_MODEL_SCORE_RAW",
+        "E04_TARGET_SCORE_DROP_PRIMARY"
+      ]
+    },
+    {
+      "text": "Across 19 matched control regions, the median score change was 0.0145, giving an empirical tail fraction of 0.050 (not a formal statistical test).",
+      "evidence_ids": [
+        "E06_CONTROL_COUNT",
+        "E07_CONTROL_SCORE_DROP_MEDIAN",
+        "E08_EMPIRICAL_TAIL_FRACTION"
+      ]
+    },
+    {
+      "text": "Mask stability minimum IoU was 0.870 and unrelated-label maximum drift was 0.0060.",
+      "evidence_ids": [
+        "E11_MASK_MIN_STABILITY_IOU",
+        "E12_UNRELATED_LABEL_MAX_DRIFT"
+      ]
+    }
+  ]
+}

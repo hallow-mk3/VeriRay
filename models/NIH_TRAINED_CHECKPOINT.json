@@ -1,0 +1,33 @@
+{
+  "weights_id": "densenet121-nih-train-ptx",
+  "filename": "densenet121-nih-train-ptx.pt",
+  "sha256": "8b8262fd0004c598f98e2ee1d1caea46c548bec1a3ced5ca9659b29fd8a5f9d1",
+  "initialized_from": "densenet121-res224-chex",
+  "trained_split": "NIH ChestX-ray14 train split ONLY (weak report-mined labels)",
+  "train_samples": 69302,
+  "val_samples": 884,
+  "best_val_auroc": 0.7947677156487376,
+  "best_val_auprc": 0.7934074595541094,
+  "label_list": [
+    "Atelectasis",
+    "Consolidation",
+    "",
+    "Pneumothorax",
+    "Edema",
+    "",
+    "",
+    "Effusion",
+    "Pneumonia",
+    "",
+    "Cardiomegaly",
+    "",
+    "",
+    "",
+    "Lung Lesion",
+    "Fracture",
+    "Lung Opacity",
+    "Enlarged Cardiomediastinum"
+  ],
+  "finding_label": "Pneumothorax",
+  "finding_index": 3
+}

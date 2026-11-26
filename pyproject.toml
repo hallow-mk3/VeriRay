@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "veriray"
+version = "2.0.0"
+description = "VeriRay v2.0: Research prototype stress-testing chest X-ray classifier behaviour under controlled perturbations and matched controls. Not for clinical use."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["veriray*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+addopts = "-q"

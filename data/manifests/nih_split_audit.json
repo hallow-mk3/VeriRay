@@ -1,0 +1,42 @@
+{
+  "manifest_sha256": "3c9dd764a0cfce76cbdb22e9a3fff2a05f91e85c86b96a969e68d251cadc0e1f",
+  "config": {
+    "seed": 20261126,
+    "val_fraction": 0.2,
+    "bbox_tuning_fraction": 0.5
+  },
+  "input_file_sha256": {
+    "Data_Entry_2017.csv": "88f75094e25ccc0c6f1f9cdfd4b2f94f9379a0ae07d5ff4dcf94242707b07462",
+    "train_val_list.txt": "61fbe896321c1c1c8b75f3e4f3a08e4fef6486d95ef8a667c31d4d60dca6cb81",
+    "test_list.txt": "38ca5ef7f756092946f57c1a59faca882ed589a1ab1f72590b45dc06c6d5e1cc",
+    "BBox_List_2017.csv": "0bbfea9d4c4e9771481b3023b1bc9f0df9dea924453b12986beb29b0c4d0c95b"
+  },
+  "audit": {
+    "split_counts": {
+      "train": {
+        "images": 69302,
+        "patients": 22432,
+        "pneumothorax_images": 2195
+      },
+      "val": {
+        "images": 17222,
+        "patients": 5576,
+        "pneumothorax_images": 442
+      },
+      "test": {
+        "images": 25596,
+        "patients": 2797,
+        "pneumothorax_images": 2665
+      }
+    },
+    "bbox_role_counts": {
+      "none": 111240,
+      "tuning": 438,
+      "reporting": 442
+    },
+    "patients_total": 30805,
+    "images_total": 112120,
+    "leakage_found": false,
+    "label_note": "NIH labels are text-mined from reports (weak labels), not radiologist ground truth."
+  }
+}
