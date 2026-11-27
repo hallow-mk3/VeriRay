@@ -144,7 +144,7 @@ def explain_verified(
     other = tuple(
         f"{sanitize_for_prompt(c.finding)} ({c.status}): mentioned by the model, not verified"
         for c in vlm_claims
-        if not c.is_verifiable_finding
+        if not c.is_verifiable_finding or c.finding.strip().lower() != evidence.finding_id.strip().lower()
     )
     candidates = build_candidate_sentences(evidence, language=language)
     report = verify_explanation(candidates, evidence)

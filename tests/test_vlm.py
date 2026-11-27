@@ -48,7 +48,7 @@ def test_parse_vlm_claims_valid_and_invalid_json():
     raw = """```json
     {"claims": [
       {"finding": "Pneumothorax", "status": "present", "region_description": "right apex", "box_xyxy": [0.1, 0.1, 0.5, 0.5]},
-      {"finding": "Effusion", "status": "uncertain", "region_description": "left base"}
+      {"finding": "Consolidation", "status": "uncertain", "region_description": "left base"}
     ]}
     ```"""
     claims = parse_vlm_claims(raw)
