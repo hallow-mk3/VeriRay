@@ -78,7 +78,7 @@ _CLINICAL_ACTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)
     for p in (
         r"\byou\s+(?:have|definitely\s+have|likely\s+have|suffer\s+from|do\s+not\s+have)\b",
-        r"\b(?:the\s+)?patient\s+(?:has|needs|requires|should\s+receive)\b",
+        r"\b(?:the\s+)?patient\s+(?:has|needs|requires|should\s+receive|is\s+(?:healthy|normal|disease[\s-]free))\b",
         r"\b(?:should\s+i|what\s+should\s+i|do\s+i\s+need|do\s+i\s+have)\b",
         r"\b(?:chest\s+tube\s+(?:insertion|placement)|needle\s+decompression|thoracostomy|surgery|hospitalize|go\s+to\s+(?:the\s+)?er)\b",
         r"\b(?:treat|cure|medicine|medication|therapy|prognosis|clinical\s+management)\b",
@@ -91,8 +91,9 @@ _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"ignore(?:[\s_]+(?:all|any|previous|prior|above|system))*(?:[\s_]+(?:instructions?|rules|constraints))",
         r"disregard(?:[\s_]+your)?[\s_]+(?:rules|instructions|guardrails|safety)",
         r"(?:reveal|print|dump|show|output|repeat)[\s_]+(?:your[\s_]+)?(?:system[\s_]+prompt|hidden[\s_]+prompt|instructions|api[\s_]+key|secrets?)",
-        r"\b(?:jailbreak|developer[\s_]+mode|dan[\s_]+mode|bypass[\s_]+safety|system[\s_]+override|unrestricted)\b",
-        r"override[\s_]+(?:verdict|all[\s_]+templates)",
+        r"\b(?:jailbreak|developer[\s_]+(?:mode|bypass)|dan[\s_]+mode|bypass[\s_]+safety|system[\s_]+override|unrestricted)\b",
+        r"override[\s_]+(?:(?:the|all)[\s_]+)?(?:verdict|templates)",
+        r"(?:output|print|verdict[\s_]+(?:as|is))[\s_]+proven\b",
         r"follow[\s_]+(?:the[\s_]+)?(?:instruction|it[\s_]+as[\s_]+a[\s_]+command)",
         r"(?:pretend|act[\s_]+as[\s_]+if)[\s_]+you[\s_]+are[\s_]+(?:a[\s_]+doctor|not[\s_]+bound|unrestricted)",
         r"(?:extract|dump|show)[\s_]+(?:patient[\s_]+name|patient[\s_]+id|mrn|ssn|exif|metadata|personal[\s_]+data)",
