@@ -73,6 +73,14 @@ class UNetEraser:
     device: torch.device
 
     @classmethod
+    def load_optional(cls, models_dir: Path | str = "models", device: str = "cpu") -> "UNetEraser | None":
+        """Load if configured in models/; return None if the checkpoint record is absent."""
+        rec_path = Path(models_dir) / UNET_RECORD
+        if not rec_path.is_file():
+            return None
+        return cls.load(models_dir, device=device)
+
+    @classmethod
     def load(cls, models_dir: Path | str = "models", device: str = "cpu") -> "UNetEraser":
         mdir = Path(models_dir)
         rec_path = mdir / UNET_RECORD

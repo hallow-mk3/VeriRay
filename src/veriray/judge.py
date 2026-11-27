@@ -30,6 +30,8 @@ from veriray.eraser import METHODS as ERASER_METHODS, EraseError, erase
 from veriray.locator import LocatorConfig, heatmap_to_mask
 from veriray.reader import Reader, ReaderError
 
+_UNET_METHOD_NAME = "gated_unet"
+
 
 @dataclass(frozen=True)
 class JudgeConfig:
@@ -177,6 +179,7 @@ def run_judge(
     lung_mask: np.ndarray | None = None,
     audited_shortcut_cue: bool = False,
     record_id: str = "ev-step3",
+    unet_eraser: object | None = None,
 ) -> JudgeOutcome:
     """Execute Steps 4-11 of the Verification Judge protocol on one accepted 224x224 image."""
     gates: dict[str, bool] = {
@@ -235,31 +238,57 @@ def run_judge(
 
     # 3. Validate primary & comparison fill methods
     all_methods = [cfg.primary_fill_method, *[m for m in cfg.comparison_fill_methods if m != cfg.primary_fill_method]]
-    if any(m not in ERASER_METHODS for m in all_methods):
+    if unet_eraser is not None and _UNET_METHOD_NAME not in all_methods:
+        all_methods = [*all_methods, _UNET_METHOD_NAME]
+    standard_methods = [m for m in all_methods if m != _UNET_METHOD_NAME]
+    if any(m not in ERASER_METHODS for m in standard_methods):
         return _indeterminate_outcome(
             ("JUDGE_UNKNOWN_FILL_METHOD",), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id,
         )
 
-    # 4. Run target edits across primary + comparison fill methods
+    # 4. Run target edits across primary + comparison fill methods (+ optional U-Net)
     target_edits: list[EraserContract] = []
     target_drops: dict[str, float] = {}
     unrelated_drifts: list[float] = []
     boundary_vals: list[float] = []
     try:
         for method in all_methods:
-            # First create edit (pixel equality guaranteed inside erase())
-            prelim = erase(image_224, locator.target_mask, method, seed=cfg.seed)
+            # First create edit (pixel equality guaranteed inside erase() / unet_eraser.erase())
+            if method == _UNET_METHOD_NAME:
+                assert unet_eraser is not None
+                prelim = unet_eraser.erase(image_224, locator.target_mask, seed=cfg.seed)
+            else:
+                prelim = erase(image_224, locator.target_mask, method, seed=cfg.seed)
             edited_rc, _, _ = reader.score(prelim.edited_image)
             drift = _max_unrelated_drift(baseline_reader.unrelated_scores, edited_rc.unrelated_scores)
             # Re-wrap or construct final EraserContract with measured unrelated drift
-            final_edit = erase(
-                image_224,
-                locator.target_mask,
-                method,
-                seed=cfg.seed,
-                unrelated_output_max_drift=drift,
-            )
+            if method == _UNET_METHOD_NAME:
+                from dataclasses import replace as _dc_replace
+                from veriray.contracts import IntegrityReport
+                new_report = IntegrityReport(
+                    outside_mask_exact_equality=prelim.integrity_report.outside_mask_exact_equality,
+                    outside_mask_max_abs_diff=prelim.integrity_report.outside_mask_max_abs_diff,
+                    boundary_discontinuity=prelim.integrity_report.boundary_discontinuity,
+                    unrelated_output_max_drift=drift,
+                    ssim_descriptive_proxy=prelim.integrity_report.ssim_descriptive_proxy,
+                )
+                final_edit = EraserContract(
+                    edited_image=prelim.edited_image,
+                    mask=prelim.mask,
+                    fill_method=prelim.fill_method,
+                    seed=prelim.seed,
+                    integrity_report=new_report,
+                    config=prelim.config,
+                )
+            else:
+                final_edit = erase(
+                    image_224,
+                    locator.target_mask,
+                    method,
+                    seed=cfg.seed,
+                    unrelated_output_max_drift=drift,
+                )
             target_edits.append(final_edit)
             target_drops[method] = float(baseline_score - edited_rc.score_raw)
             unrelated_drifts.append(drift)

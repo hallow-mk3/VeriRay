@@ -12,6 +12,7 @@ import numpy as np
 import torch
 
 from veriray.anatomy import LungSegmenter
+from veriray.unet_eraser import UNetEraser
 from veriray.contracts import (
     RESEARCH_DISCLAIMER,
     VERDICT_USER_LANGUAGE,
@@ -280,6 +281,12 @@ def run_verification(
                 seg = LungSegmenter.load_optional(models_dir, device=str(reader.device))
                 if seg is not None:
                     effective_lung_mask = seg.segment_lungs(display)
+            # Load optional GatedUNet eraser; silently skip if weights are absent
+            unet_eraser = None
+            try:
+                unet_eraser = UNetEraser.load_optional(models_dir, device=str(reader.device))
+            except Exception:  # noqa: BLE001 - optional; never block the pipeline
+                unet_eraser = None
             # Score the 224x224 model-space view as baseline so counterfactual drops compare identical frames.
             baseline_224, _, _ = reader.score(display)
             judge_outcome = run_judge(
@@ -291,6 +298,7 @@ def run_verification(
                 locator_cfg=locator_cfg,
                 lung_mask=effective_lung_mask,
                 audited_shortcut_cue=audited_shortcut_cue,
+                unet_eraser=unet_eraser,
             )
             lat["judge"] = (time.perf_counter() - t) * 1000
             verdict = judge_outcome.contract.verdict
