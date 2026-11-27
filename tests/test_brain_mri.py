@@ -38,3 +38,24 @@ def test_brain_mri_fails_closed_on_missing_or_tampered_weights(tmp_path: Path):
     with pytest.raises(BrainMRIError) as e2:
         BrainMRIReader.load(d)
     assert e2.value.reason_code == "BRAIN_HASH_MISMATCH"
+
+
+def test_brain_mri_fails_closed_on_bad_record_and_bad_input(tmp_path: Path):
+    d = tmp_path / "bm_bad"
+    d.mkdir()
+    (d / BRAIN_RECORD).write_text("{not json")
+    with pytest.raises(BrainMRIError) as e_rec:
+        BrainMRIReader.load(d)
+    assert e_rec.value.reason_code == "BRAIN_RECORD_INVALID"
+
+    m = tvm.densenet121(weights=None)
+    m.classifier = torch.nn.Linear(m.classifier.in_features, len(BRAIN_CLASSES))
+    wpath = d / "densenet121-brain-mri-4cls.pt"
+    torch.save(m.state_dict(), wpath)
+    digest = hashlib.sha256(wpath.read_bytes()).hexdigest()
+    (d / BRAIN_RECORD).write_text(json.dumps({"filename": wpath.name, "sha256": digest, "classes": list(BRAIN_CLASSES)}))
+
+    reader = BrainMRIReader.load(d, device="cpu")
+    with pytest.raises(BrainMRIError) as e_bad:
+        reader.predict_and_cam(np.full((64, 64), np.nan, dtype=np.float32))
+    assert e_bad.value.reason_code == "BRAIN_BAD_INPUT"

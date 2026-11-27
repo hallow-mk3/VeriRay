@@ -43,9 +43,15 @@ class BrainMRIReader:
         rec_path = mdir / BRAIN_RECORD
         if not rec_path.is_file():
             raise BrainMRIError("BRAIN_CHECKPOINT_MISSING", f"{rec_path} not found")
-        rec = json.loads(rec_path.read_text(encoding="utf-8"))
-        wpath = mdir / str(rec["filename"])
-        expected = str(rec["sha256"]).lower()
+        try:
+            rec = json.loads(rec_path.read_text(encoding="utf-8"))
+            wpath = mdir / str(rec["filename"])
+            expected = str(rec["sha256"]).lower()
+            classes = tuple(rec["classes"])
+        except Exception as exc:  # noqa: BLE001
+            raise BrainMRIError("BRAIN_RECORD_INVALID", str(exc)) from exc
+        if len(expected) != 64 or not classes:
+            raise BrainMRIError("BRAIN_RECORD_INVALID", "invalid sha256 or empty classes")
         if not wpath.is_file():
             raise BrainMRIError("BRAIN_CHECKPOINT_MISSING", f"{wpath} not found")
         actual = hashlib.sha256(wpath.read_bytes()).hexdigest()
@@ -54,29 +60,38 @@ class BrainMRIReader:
 
         if "efficientnet_b0" in wpath.name:
             model = tvm.efficientnet_b0(weights=None)
-            model.classifier[1] = nn.Linear(model.classifier[1].in_features, len(rec["classes"]))
+            model.classifier[1] = nn.Linear(model.classifier[1].in_features, len(classes))
         elif "convnext_tiny" in wpath.name:
             model = tvm.convnext_tiny(weights=None)
-            model.classifier[2] = nn.Linear(model.classifier[2].in_features, len(rec["classes"]))
+            model.classifier[2] = nn.Linear(model.classifier[2].in_features, len(classes))
+        elif "densenet121" in wpath.name:
+            model = tvm.densenet121(weights=None)
+            model.classifier = nn.Linear(model.classifier.in_features, len(classes))
         else:
             raise BrainMRIError("BRAIN_UNKNOWN_ARCH", wpath.name)
 
-        model.load_state_dict(torch.load(wpath, map_location="cpu", weights_only=True))
-        model.eval()
-        for p in model.parameters():
-            p.requires_grad_(False)
-        dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        model.to(dev)
+        try:
+            model.load_state_dict(torch.load(wpath, map_location="cpu", weights_only=True))
+            model.eval()
+            for p in model.parameters():
+                p.requires_grad_(False)
+            dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+            model.to(dev)
+        except Exception as exc:  # noqa: BLE001
+            raise BrainMRIError("BRAIN_LOAD_FAILED", f"{type(exc).__name__}: {exc}") from exc
         return cls(
             model=model,
             checkpoint_id=f"{wpath.stem}@sha256:{expected[:12]}",
-            classes=tuple(rec["classes"]),
+            classes=classes,
             img_size=256,
             device=dev,
         )
 
     def _preprocess(self, gray_0_255: np.ndarray) -> tuple[torch.Tensor, np.ndarray]:
-        u8 = np.clip(np.rint(gray_0_255), 0, 255).astype(np.uint8)
+        arr = np.asarray(gray_0_255, dtype=np.float32)
+        if arr.ndim != 2 or arr.size == 0 or not np.all(np.isfinite(arr)):
+            raise BrainMRIError("BRAIN_BAD_INPUT", "expected non-empty finite 2D grayscale array")
+        u8 = np.clip(np.rint(arr), 0, 255).astype(np.uint8)
         resized = cv2.resize(u8, (self.img_size, self.img_size), interpolation=cv2.INTER_AREA).astype(np.float32)
         t3 = torch.from_numpy(resized / 255.0)[None, None].repeat(1, 3, 1, 1).to(self.device)
         mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, 3, 1, 1)
@@ -95,9 +110,10 @@ class BrainMRIReader:
         feats = self.model.features(x).detach().clone().requires_grad_(True)
         with torch.enable_grad():
             pooled = F.adaptive_avg_pool2d(feats, (1, 1))
-            if not isinstance(self.model.classifier[0], nn.LayerNorm):
-                pooled = pooled.flatten(1)
-            cls_logit = self.model.classifier(pooled)[0, pred_idx]
+            if isinstance(self.model.classifier, nn.Sequential) and isinstance(self.model.classifier[0], nn.LayerNorm):
+                cls_logit = self.model.classifier(pooled)[0, pred_idx]
+            else:
+                cls_logit = self.model.classifier(pooled.flatten(1))[0, pred_idx]
             (g,) = torch.autograd.grad(cls_logit, feats)
         g2, g3 = g.pow(2), g.pow(3)
         denom = 2.0 * g2 + feats.sum(dim=(2, 3), keepdim=True) * g3

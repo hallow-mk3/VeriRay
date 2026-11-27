@@ -63,8 +63,15 @@ if mode.startswith("Brain MRI"):
     from PIL import Image
     import io
 
-    arr = np.asarray(Image.open(io.BytesIO(mri_file.getvalue())).convert("L"), dtype=np.float32)
-    out = bm_reader.predict_and_cam(arr)
+    try:
+        arr = np.asarray(Image.open(io.BytesIO(mri_file.getvalue())).convert("L"), dtype=np.float32)
+        out = bm_reader.predict_and_cam(arr)
+    except BrainMRIError as exc:
+        st.error(f"INDETERMINATE — {exc.reason_code}: {exc}")
+        st.stop()
+    except Exception:  # noqa: BLE001 - fail closed on corrupt image
+        st.error("INDETERMINATE — CORRUPT_OR_UNREADABLE_IMAGE")
+        st.stop()
     st.metric("Top model class (uncalibrated model score, not a diagnosis)", f"{out['predicted_class']} ({out['scores'][out['predicted_class']]:.4f})")
     st.json({k: round(v, 4) for k, v in out["scores"].items()})
     c1, c2, c3 = st.columns(3)
