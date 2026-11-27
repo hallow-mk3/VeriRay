@@ -28,6 +28,8 @@ PSPNET_TARGETS = (
 )
 LEFT_LUNG_IDX = 4
 RIGHT_LUNG_IDX = 5
+HEART_IDX = 8
+MEDIASTINUM_IDX = 11
 
 
 class AnatomyError(Exception):
@@ -87,6 +89,20 @@ class LungSegmenter:
 
     def segment_lungs(self, image_224_0_255: np.ndarray, threshold: float = 0.5) -> np.ndarray:
         """Return (224, 224) bool mask of Left Lung | Right Lung."""
+        return self.segment_thoracic_roi(image_224_0_255, finding_id="pneumothorax", threshold=threshold)
+
+    def segment_thoracic_roi(
+        self,
+        image_224_0_255: np.ndarray,
+        *,
+        finding_id: str = "pneumothorax",
+        threshold: float = 0.5,
+    ) -> np.ndarray:
+        """Return (224, 224) bool ROI mask appropriate for the target finding.
+
+        Parenchymal/pleural findings use Left Lung | Right Lung.
+        Cardiomegaly includes Heart | Mediastinum alongside the lungs.
+        """
         img = np.asarray(image_224_0_255, dtype=np.float32)
         if img.shape != (224, 224):
             raise AnatomyError("LUNG_SEG_BAD_SHAPE", f"expected (224, 224), got {img.shape}")
@@ -97,8 +113,13 @@ class LungSegmenter:
         mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, 3, 1, 1)
         t = (t - mean) / std
+        indices = (
+            [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, HEART_IDX, MEDIASTINUM_IDX]
+            if finding_id.lower().strip() == "cardiomegaly"
+            else [LEFT_LUNG_IDX, RIGHT_LUNG_IDX]
+        )
         with torch.inference_mode():
             logits = self.model(t)
-            lung_probs = torch.sigmoid(logits[:, [LEFT_LUNG_IDX, RIGHT_LUNG_IDX]]).max(dim=1, keepdim=True).values
-            lung_224 = F.interpolate(lung_probs, size=(224, 224), mode="bilinear", align_corners=False)[0, 0]
-        return (lung_224.detach().cpu().numpy() >= threshold).astype(bool)
+            roi_probs = torch.sigmoid(logits[:, indices]).max(dim=1, keepdim=True).values
+            roi_224 = F.interpolate(roi_probs, size=(224, 224), mode="bilinear", align_corners=False)[0, 0]
+        return (roi_224.detach().cpu().numpy() >= threshold).astype(bool)

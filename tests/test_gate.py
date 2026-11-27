@@ -118,3 +118,21 @@ def test_oversized_bytes_input_rejected():
 
     inp, gate = run_input_gate(b"\x00" * (MAX_INPUT_BYTES + 1), **KW)
     assert inp is None and gate.status is InputGateStatus.REJECT and "INPUT_TOO_LARGE" in gate.reason_codes
+
+
+def test_inverted_xray_rejected():
+    """An intensity-inverted radiograph (dark mediastinum, bright corners) must be rejected."""
+    normal = synthetic_xray()  # bright lungs on darker background — real CXR appearance
+    inverted = (255 - normal).astype(np.uint8)
+    inp, gate = run_input_gate(inverted, **KW)
+    assert inp is None, "inverted radiograph must not produce an InputContract"
+    assert gate.status is InputGateStatus.REJECT
+    assert "NON_RADIOGRAPH_INVERTED" in gate.reason_codes
+
+
+def test_normal_xray_not_flagged_as_inverted():
+    """The inversion heuristic must NOT reject a correctly-oriented synthetic X-ray."""
+    inp, gate = run_input_gate(synthetic_xray(), **KW)
+    assert gate.status is InputGateStatus.ACCEPT, (
+        f"normal X-ray was incorrectly rejected: {gate.reason_codes}"
+    )

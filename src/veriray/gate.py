@@ -222,6 +222,15 @@ def _run_input_gate(source, model_id, preprocessing_id, finding_id, raw_metadata
     if float(np.mean(gray > 236.0)) > 0.50 and float(np.mean((gray >= 40.0) & (gray <= 215.0))) < 0.35:
         return _reject(["NON_RADIOGRAPH_DOCUMENT_SCAN"])
 
+    # Inverted radiographs: dark central mediastinum/spine surrounded by bright upper corners.
+    center_med = float(gray[int(h * 0.25):int(h * 0.85), int(w * 0.38):int(w * 0.62)].mean())
+    upper_corners = float(np.concatenate([
+        gray[:int(h * 0.12), :int(w * 0.12)].ravel(),
+        gray[:int(h * 0.12), int(w * 0.88):].ravel(),
+    ]).mean())
+    if (center_med - upper_corners) < -25.0:
+        return _reject(["NON_RADIOGRAPH_INVERTED"])
+
     mean, std = float(gray.mean()), float(gray.std())
     p1, p99 = np.percentile(gray, [1, 99])
     under = float(np.mean(gray <= 4.0))

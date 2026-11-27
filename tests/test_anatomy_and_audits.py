@@ -67,3 +67,30 @@ def test_boundary_suite_all_fail_closed(tmp_path: Path):
     rep = run_boundary_suite(models_dir=Path("models"), empty_dir=tmp_path / "empty")
     assert rep["fail_closed_rate"] == 1.0
     assert rep["total_boundary_cases"] == 11
+
+
+def test_segment_thoracic_roi_lung_only_for_pneumothorax(tmp_path: Path):
+    """segment_thoracic_roi with finding_id='pneumothorax' returns a (224,224) bool mask."""
+    d = _write_fake_pspnet(tmp_path / "l")
+    seg = LungSegmenter.load(d)
+    roi = seg.segment_thoracic_roi(synthetic_xray(224, 224).astype(np.float32), finding_id="pneumothorax")
+    assert roi.shape == (224, 224) and roi.dtype == np.bool_
+
+
+def test_segment_thoracic_roi_includes_cardiac_for_cardiomegaly(tmp_path: Path):
+    """segment_thoracic_roi with finding_id='cardiomegaly' returns a (224,224) bool mask
+    (cardiac + mediastinum indices are included; shape and dtype must be correct)."""
+    d = _write_fake_pspnet(tmp_path / "l")
+    seg = LungSegmenter.load(d)
+    roi = seg.segment_thoracic_roi(synthetic_xray(224, 224).astype(np.float32), finding_id="cardiomegaly")
+    assert roi.shape == (224, 224) and roi.dtype == np.bool_
+
+
+def test_segment_lungs_delegates_to_thoracic_roi(tmp_path: Path):
+    """segment_lungs() must return an identical result to segment_thoracic_roi(..., finding_id='pneumothorax')."""
+    d = _write_fake_pspnet(tmp_path / "l")
+    seg = LungSegmenter.load(d)
+    img = synthetic_xray(224, 224).astype(np.float32)
+    via_legacy = seg.segment_lungs(img)
+    via_roi = seg.segment_thoracic_roi(img, finding_id="pneumothorax")
+    np.testing.assert_array_equal(via_legacy, via_roi)
