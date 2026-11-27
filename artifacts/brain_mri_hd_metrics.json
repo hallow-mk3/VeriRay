@@ -1,0 +1,63 @@
+{
+  "weights_id": "convnext_tiny_fpn-brain-mri-5cls",
+  "filename": "convnext_tiny_fpn-brain-mri-5cls.pt",
+  "sha256": "0f043d4364d3981494acc0b2572d2efae20c3d74f3d1d446d755b436d91654c1",
+  "img_size": 256,
+  "classes": [
+    "glioma",
+    "meningioma",
+    "notumor",
+    "pituitary",
+    "ischemic_stroke"
+  ],
+  "train_samples": 8394,
+  "test_samples": 2139,
+  "best_5cls_accuracy": 0.968209,
+  "best_test_accuracy": 0.9575,
+  "lesion_segmentation_dice": 0.5099,
+  "classification_report": {
+    "glioma": {
+      "precision": 0.9985185185185185,
+      "recall": 0.9157608695652174,
+      "f1-score": 0.9553508150248051,
+      "support": 736.0
+    },
+    "meningioma": {
+      "precision": 0.8901345291479821,
+      "recall": 0.9925,
+      "f1-score": 0.9385342789598109,
+      "support": 400.0
+    },
+    "notumor": {
+      "precision": 0.970873786407767,
+      "recall": 1.0,
+      "f1-score": 0.9852216748768473,
+      "support": 400.0
+    },
+    "pituitary": {
+      "precision": 0.9851116625310173,
+      "recall": 0.9925,
+      "f1-score": 0.9887920298879203,
+      "support": 400.0
+    },
+    "ischemic_stroke": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 203.0
+    },
+    "accuracy": 0.9682094436652642,
+    "macro avg": {
+      "precision": 0.9689276993210569,
+      "recall": 0.9801521739130437,
+      "f1-score": 0.9735797597498766,
+      "support": 2139.0
+    },
+    "weighted avg": {
+      "precision": 0.9707141752521441,
+      "recall": 0.9682094436652642,
+      "f1-score": 0.968283026343192,
+      "support": 2139.0
+    }
+  }
+}

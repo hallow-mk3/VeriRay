@@ -16,9 +16,10 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from veriray.brain_mri import BrainMRIError, BrainMRIReader  # noqa: E402
+from veriray.brain_mri import BrainMRIError, BrainMRIReader, decode_brain_upload  # noqa: E402
+from veriray.chest_hd import CHEST_HD_DISPLAY_NAMES, ChestHDReaderAdapter  # noqa: E402
 from veriray.config import configs_from_yaml  # noqa: E402
-from veriray.contracts import SYNTHETIC_COUNTERFACTUAL_LABEL, EvidenceRecord, Verdict  # noqa: E402
+from veriray.contracts import SUPPORTED_FINDINGS, SYNTHETIC_COUNTERFACTUAL_LABEL, EvidenceRecord, Verdict  # noqa: E402
 from veriray.controls import ControlConfig, generate_matched_controls  # noqa: E402
 from veriray.eraser import EraseError, erase, render_labelled  # noqa: E402
 from veriray.judge import JudgeConfig  # noqa: E402
@@ -56,15 +57,16 @@ if mode.startswith("Brain MRI"):
     except BrainMRIError as exc:
         st.error(f"INDETERMINATE — {exc.reason_code}: {exc}")
         st.stop()
-    mri_file = st.file_uploader("Upload a public, de-identified Brain MRI slice (PNG/JPG)", type=["png", "jpg", "jpeg", "bmp"])
+    mri_file = st.file_uploader(
+        "Upload a public, de-identified Brain MRI slice or 3D NIfTI volume (PNG/JPG/BMP/NII/NII.GZ)",
+        type=["png", "jpg", "jpeg", "bmp", "nii", "gz"],
+    )
     if mri_file is None:
-        st.info("Upload a Brain MRI image to inspect model scores, Grad-CAM++, and counterfactual drop.")
+        st.info("Upload a Brain MRI image or NIfTI volume to inspect model scores, FPN/Grad-CAM++ map, and counterfactual drop.")
         st.stop()
-    from PIL import Image
-    import io
 
     try:
-        arr = np.asarray(Image.open(io.BytesIO(mri_file.getvalue())).convert("L"), dtype=np.float32)
+        arr = decode_brain_upload(mri_file.getvalue(), mri_file.name)
         out = bm_reader.predict_and_cam(arr)
     except BrainMRIError as exc:
         st.error(f"INDETERMINATE — {exc.reason_code}: {exc}")
@@ -206,11 +208,35 @@ if mode.startswith("Evaluation"):
         st.subheader("Subgroup metrics (Age band)")
         st.json(pack.get("subgroups_age_band", {}))
 
+    chest_hd_path = ROOT / "models" / "CHEST_HD_CHECKPOINT.json"
+    if chest_hd_path.is_file():
+        chd = json.loads(chest_hd_path.read_text(encoding="utf-8"))
+        st.subheader(f"Chest HD 512x512 16-finding benchmark (`{chd.get('filename')}`)")
+        st.metric("Macro Validation AUROC (16 findings)", f"{chd.get('best_macro_val_auroc', 0.0):.4f}")
+        vm = chd.get("val_metrics", {})
+        rows_chd = [
+            {
+                "finding": k,
+                "display_name": v.get("display_name", k),
+                "val_auroc": v.get("auroc"),
+                "val_auprc": v.get("auprc"),
+                "mask_dice": v.get("pos_mask_dice"),
+                "val_positives": v.get("val_positives"),
+            }
+            for k, v in vm.items()
+            if not k.startswith("_") and isinstance(v, dict)
+        ]
+        if rows_chd:
+            st.dataframe(rows_chd, use_container_width=True)
+
     brain_path = ROOT / "models" / "BRAIN_MRI_CHECKPOINT.json"
     if brain_path.is_file():
         bm = json.loads(brain_path.read_text(encoding="utf-8"))
-        st.subheader(f"Brain MRI 4-class benchmark (`{bm.get('filename')}`)")
-        st.metric("Test accuracy (n=1600)", f"{bm.get('best_test_accuracy', 0.0):.2%}")
+        st.subheader(f"Brain MRI benchmark (`{bm.get('filename')}`)")
+        bc1, bc2, bc3 = st.columns(3)
+        bc1.metric("5-class accuracy (Tumor + Stroke)", f"{bm.get('best_5cls_accuracy', bm.get('best_test_accuracy', 0.0)):.2%}")
+        bc2.metric("4-class benchmark accuracy", f"{bm.get('best_test_accuracy', 0.0):.2%}")
+        bc3.metric("Lesion segmentation Dice", f"{bm.get('lesion_segmentation_dice', 0.0):.4f}")
 
     st.subheader("Verdict counts & latencies (ms)")
     st.json({"verdict_counts": pack.get("verdict_counts", {}), "latencies": pack.get("latencies", {})})
@@ -229,11 +255,17 @@ def _load_reader(finding_id: str = "pneumothorax"):
         return None, exc
 
 
+_avail_findings = (
+    list(SUPPORTED_FINDINGS)
+    if ChestHDReaderAdapter.is_available(ROOT / "models")
+    else ["pneumothorax", "effusion", "cardiomegaly"]
+)
 target_finding = st.selectbox(
     "Target chest finding",
-    ["pneumothorax", "effusion", "cardiomegaly"],
+    _avail_findings,
     index=0,
-    help="Select which thoracic finding the Reader + Grad-CAM++ + Judge pipeline targets.",
+    format_func=lambda f: f"{CHEST_HD_DISPLAY_NAMES.get(f, f.capitalize())} ({f})",
+    help="Select which thoracic finding the Reader + Spatial Locator + Judge pipeline targets.",
 )
 reader, load_err = _load_reader(target_finding)
 if load_err is not None:

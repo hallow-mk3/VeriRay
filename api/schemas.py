@@ -7,6 +7,24 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 AllowedVerdict = Literal["MODEL-SUPPORTED", "NOT SUPPORTED", "SHORTCUT RISK", "INDETERMINATE"]
+AllowedFinding = Literal[
+    "pneumothorax",
+    "effusion",
+    "cardiomegaly",
+    "aortic_enlargement",
+    "atelectasis",
+    "calcification",
+    "consolidation",
+    "ild",
+    "infiltration",
+    "lung_opacity",
+    "nodule_mass",
+    "other_lesion",
+    "pleural_thickening",
+    "pulmonary_fibrosis",
+    "tuberculosis",
+    "pneumonia",
+]
 
 
 class HealthResponse(BaseModel):
@@ -25,7 +43,7 @@ class VerifiedSentenceSchema(BaseModel):
 
 class VerifyResponse(BaseModel):
     sample_name: str
-    finding: Literal["pneumothorax", "effusion", "cardiomegaly"] = "pneumothorax"
+    finding: AllowedFinding = "pneumothorax"
     verdict: AllowedVerdict
     reason_codes: list[str]
     user_facing_text: str
@@ -61,3 +79,16 @@ class ChatResponseSchema(BaseModel):
     answer: str
     cited_evidence_ids: list[str] = Field(default_factory=list)
     refusal_reason_codes: list[str] = Field(default_factory=list)
+
+
+class BrainVerifyResponse(BaseModel):
+    sample_name: str
+    predicted_class: str | None = None
+    scores: dict[str, float] = Field(default_factory=dict)
+    target_score_drop: float | None = None
+    control_median_drop: float | None = None
+    empirical_rank: int | None = None
+    num_controls: int = 0
+    checkpoint_id: str | None = None
+    reason_codes: list[str] = Field(default_factory=list)
+    disclaimer: str

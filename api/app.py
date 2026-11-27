@@ -14,14 +14,18 @@ from fastapi import FastAPI, File, Query, UploadFile
 
 from api.schemas import (
     BatchVerifyResponse,
+    BrainVerifyResponse,
     ChatRequest,
     ChatResponseSchema,
     HealthResponse,
     VerifiedSentenceSchema,
     VerifyResponse,
 )
+from veriray.brain_mri import BrainMRIError, BrainMRIReader, decode_brain_upload
 from veriray.config import configs_from_yaml
 from veriray.contracts import RESEARCH_DISCLAIMER, SUPPORTED_FINDINGS, VERDICT_USER_LANGUAGE, EvidenceRecord, Verdict
+from veriray.controls import ControlConfig, generate_matched_controls
+from veriray.eraser import erase
 from veriray.judge import JudgeConfig
 from veriray.locator import LocatorConfig
 from veriray.pipeline import VerificationResult, run_verification
@@ -88,7 +92,9 @@ def create_app(
     state: dict[str, Any] = {
         "models_dir": Path(models_dir),
         "manifest_dir": Path(manifest_dir) if manifest_dir is not None else None,
-        "reader": reader,
+        "injected_reader": reader,
+        "readers_cache": {},
+        "brain_reader": None,
         "load_error": None,
     }
 
@@ -99,11 +105,13 @@ def create_app(
         loc_cfg, judge_cfg = LocatorConfig(), JudgeConfig()
 
     def _get_reader() -> tuple[Reader | None, str | None]:
-        if state["reader"] is not None:
-            return state["reader"], None
+        if state["injected_reader"] is not None:
+            return state["injected_reader"], None
+        if "pneumothorax" in state["readers_cache"]:
+            return state["readers_cache"]["pneumothorax"], None
         try:
-            r = Reader.load_preferred(state["models_dir"])
-            state["reader"] = r
+            r = Reader.load_for_finding(state["models_dir"], "pneumothorax")
+            state["readers_cache"]["pneumothorax"] = r
             state["load_error"] = None
             return r, None
         except ReaderError as exc:
@@ -118,16 +126,16 @@ def create_app(
         return {
             "service": "VeriRay Local REST API",
             "offline_only": True,
-            "endpoints": ["/health", "/verify", "/verify-batch", "/chat", "/docs"],
+            "supported_chest_findings": list(SUPPORTED_FINDINGS),
+            "endpoints": ["/health", "/verify", "/verify-batch", "/verify-brain", "/chat", "/docs"],
             "streamlit_ui": "http://127.0.0.1:8502",
         }
 
     def _get_reader_for_finding(finding_norm: str) -> tuple[Reader | None, str | None]:
-        if finding_norm == "pneumothorax":
-            return _get_reader()
-        if state["reader"] is not None:
-            # Re-target injected reader (e.g. in tests) without mutating state["reader"]
-            base_r: Reader = state["reader"]
+        if state["injected_reader"] is not None:
+            base_r: Reader = state["injected_reader"]
+            if finding_norm == "pneumothorax":
+                return base_r, None
             canon = finding_norm.capitalize()
             try:
                 idx = next(i for i, lbl in enumerate(base_r.record.label_list) if lbl.lower() == finding_norm)
@@ -136,8 +144,12 @@ def create_app(
             from dataclasses import replace as _dc_replace
             new_rec = _dc_replace(base_r.record, finding_label=canon, finding_index=idx)
             return Reader(base_r.model, new_rec, base_r.device, calibrator=None), None
+        if finding_norm in state["readers_cache"]:
+            return state["readers_cache"][finding_norm], None
         try:
-            return Reader.load_for_finding(state["models_dir"], finding_norm), None
+            r = Reader.load_for_finding(state["models_dir"], finding_norm)
+            state["readers_cache"][finding_norm] = r
+            return r, None
         except ReaderError as exc:
             return None, exc.reason_code
         except Exception:  # noqa: BLE001
@@ -257,6 +269,56 @@ def create_app(
             cited_evidence_ids=list(resp.cited_evidence_ids),
             refusal_reason_codes=list(resp.refusal_reason_codes),
         )
+
+    @app.post("/verify-brain", response_model=BrainVerifyResponse)
+    async def verify_brain(file: UploadFile = File(...)) -> BrainVerifyResponse:
+        import numpy as np
+
+        name = sanitize_for_prompt(file.filename or "brain.png") or "brain.png"
+        try:
+            payload = await file.read()
+            if len(payload) > MAX_UPLOAD_BYTES:
+                return BrainVerifyResponse(sample_name=name, reason_codes=["INPUT_TOO_LARGE"], disclaimer=RESEARCH_DISCLAIMER)
+            if state["brain_reader"] is None:
+                state["brain_reader"] = BrainMRIReader.load(state["models_dir"])
+            bm_r: BrainMRIReader = state["brain_reader"]
+            arr = decode_brain_upload(payload, file.filename or "brain.png")
+            out = bm_r.predict_and_cam(arr)
+            pred = out["predicted_class"]
+            target_drop = None
+            c_med = None
+            emp_rank = None
+            n_ctrl = 0
+            mask = out["target_mask"]
+            if mask.any() and not mask.all():
+                cf = erase(out["display_image"], mask, "telea", seed=0)
+                cf_out = bm_r.predict_and_cam(cf.edited_image)
+                target_drop = round(float(out["scores"][pred] - cf_out["scores"][pred]), 6)
+                ctrl_res = generate_matched_controls(mask, ControlConfig(k=9, min_controls=3, seed=20261126))
+                if ctrl_res.valid:
+                    c_drops = [
+                        float(out["scores"][pred] - bm_r.predict_and_cam(erase(out["display_image"], cm, "telea", seed=ci + 1).edited_image)["scores"][pred])
+                        for ci, cm in enumerate(ctrl_res.masks)
+                    ]
+                    n_ctrl = len(c_drops)
+                    c_med = round(float(np.median(c_drops)), 6)
+                    emp_rank = 1 + int(np.sum(np.asarray(c_drops) >= target_drop))
+            return BrainVerifyResponse(
+                sample_name=name,
+                predicted_class=pred,
+                scores={k: round(float(v), 6) for k, v in out["scores"].items()},
+                target_score_drop=target_drop,
+                control_median_drop=c_med,
+                empirical_rank=emp_rank,
+                num_controls=n_ctrl,
+                checkpoint_id=out["checkpoint_id"],
+                reason_codes=["BRAIN_MRI_OK"],
+                disclaimer=RESEARCH_DISCLAIMER,
+            )
+        except BrainMRIError as exc:
+            return BrainVerifyResponse(sample_name=name, reason_codes=[exc.reason_code], disclaimer=RESEARCH_DISCLAIMER)
+        except Exception:  # noqa: BLE001
+            return BrainVerifyResponse(sample_name=name, reason_codes=["API_INTERNAL_ERROR"], disclaimer=RESEARCH_DISCLAIMER)
 
     return app
 
