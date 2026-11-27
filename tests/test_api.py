@@ -62,3 +62,21 @@ def test_api_load_and_injected_faults(fake_reader, tmp_path: Path):
     assert summary["schema_valid_rate"] == 1.0
     assert summary["injected_faults_passed"] == summary["injected_faults_total"]
     assert summary["p95_ms"] > 0.0
+
+
+def test_api_multifinding_and_unsupported_finding_fail_closed(fake_reader, tmp_path: Path):
+    app = create_app(manifest_dir=tmp_path / "runs", reader=fake_reader)
+    client = TestClient(app)
+
+    for fid in ("effusion", "cardiomegaly"):
+        r = client.post(f"/verify?finding_id={fid}", files={"file": ("scan.png", _png(), "image/png")})
+        assert r.status_code == 200
+        vr = VerifyResponse.model_validate(r.json())
+        assert vr.finding == fid
+        assert vr.verdict in {"MODEL-SUPPORTED", "NOT SUPPORTED", "SHORTCUT RISK", "INDETERMINATE"}
+
+    bad = client.post("/verify?finding_id=glioma", files={"file": ("scan.png", _png(), "image/png")})
+    assert bad.status_code == 200
+    bvr = VerifyResponse.model_validate(bad.json())
+    assert bvr.verdict == "INDETERMINATE"
+    assert "UNSUPPORTED_FINDING" in bvr.reason_codes

@@ -212,17 +212,23 @@ if mode.startswith("Evaluation"):
 
 
 @st.cache_resource(show_spinner="Loading Reader from models/ ...")
-def _load_reader():
+def _load_reader(finding_id: str = "pneumothorax"):
     import torch
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     try:
-        return Reader.load_preferred(ROOT / "models", device=device), None
+        return Reader.load_for_finding(ROOT / "models", finding_id, device=device), None
     except ReaderError as exc:
         return None, exc
 
 
-reader, load_err = _load_reader()
+target_finding = st.selectbox(
+    "Target chest finding",
+    ["pneumothorax", "effusion", "cardiomegaly"],
+    index=0,
+    help="Select which thoracic finding the Reader + Grad-CAM++ + Judge pipeline targets.",
+)
+reader, load_err = _load_reader(target_finding)
 if load_err is not None:
     st.error(f"INDETERMINATE — {load_err.reason_code}: {load_err.message}")
     st.stop()
@@ -289,6 +295,7 @@ for idx, upl in enumerate(uploads):
         manifest_dir=ROOT / "artifacts" / "tmp" / "runs",
         locator_cfg=loc_cfg,
         judge_cfg=judge_cfg,
+        finding_id=target_finding,
     )
     queue_results.append((upl.name, r_item))
 

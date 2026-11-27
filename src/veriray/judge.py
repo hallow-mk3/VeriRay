@@ -122,6 +122,7 @@ def _indeterminate_outcome(
     primary_edit: EraserContract | None = None,
     comp_edits: tuple[EraserContract, ...] = (),
     control_masks: tuple[np.ndarray, ...] = (),
+    finding_id: str = SUPPORTED_FINDING,
 ) -> JudgeOutcome:
     jc = JudgeContract(
         target_effects=target_effects,
@@ -132,11 +133,16 @@ def _indeterminate_outcome(
         verdict=Verdict.INDETERMINATE,
         reason_codes=reason_codes,
     )
-    ev = _build_evidence_record(record_id, jc, baseline_score)
+    ev = _build_evidence_record(record_id, jc, baseline_score, finding_id=finding_id)
     return JudgeOutcome(jc, ev, primary_edit, comp_edits, control_masks)
 
 
-def _build_evidence_record(record_id: str, jc: JudgeContract, baseline_score: float) -> EvidenceRecord:
+def _build_evidence_record(
+    record_id: str,
+    jc: JudgeContract,
+    baseline_score: float,
+    finding_id: str = SUPPORTED_FINDING,
+) -> EvidenceRecord:
     te = dict(jc.target_effects)
     ce = dict(jc.control_effects)
     sm = dict(jc.stability_metrics)
@@ -161,7 +167,7 @@ def _build_evidence_record(record_id: str, jc: JudgeContract, baseline_score: fl
     }
     return EvidenceRecord(
         record_id=record_id,
-        finding_id=SUPPORTED_FINDING,
+        finding_id=finding_id,
         verdict=jc.verdict,
         reason_codes=jc.reason_codes,
         items=items,
@@ -180,6 +186,7 @@ def run_judge(
     audited_shortcut_cue: bool = False,
     record_id: str = "ev-step3",
     unet_eraser: object | None = None,
+    finding_id: str = SUPPORTED_FINDING,
 ) -> JudgeOutcome:
     """Execute Steps 4-11 of the Verification Judge protocol on one accepted 224x224 image."""
     gates: dict[str, bool] = {
@@ -217,13 +224,13 @@ def run_judge(
             verdict=Verdict.NOT_SUPPORTED,
             reason_codes=tuple(reasons),
         )
-        return JudgeOutcome(jc, _build_evidence_record(record_id, jc, baseline_score))
+        return JudgeOutcome(jc, _build_evidence_record(record_id, jc, baseline_score, finding_id=finding_id))
 
     # 1. Locator quality gate
     if locator.is_weak_or_unstable:
         return _indeterminate_outcome(
             ("JUDGE_LOCATOR_WEAK_OR_UNSTABLE",), gates, stability, shortcut_flags,
-            target_effects, control_effects, baseline_score, record_id,
+            target_effects, control_effects, baseline_score, record_id, finding_id=finding_id,
         )
     gates["locator_valid"] = True
 
@@ -232,7 +239,7 @@ def run_judge(
     if stability["mask_min_stability_iou"] < cfg.min_mask_threshold_iou:
         return _indeterminate_outcome(
             ("JUDGE_MASK_UNSTABLE",), gates, stability, shortcut_flags,
-            target_effects, control_effects, baseline_score, record_id,
+            target_effects, control_effects, baseline_score, record_id, finding_id=finding_id,
         )
     gates["mask_stability_passed"] = True
 
@@ -244,7 +251,7 @@ def run_judge(
     if any(m not in ERASER_METHODS for m in standard_methods):
         return _indeterminate_outcome(
             ("JUDGE_UNKNOWN_FILL_METHOD",), gates, stability, shortcut_flags,
-            target_effects, control_effects, baseline_score, record_id,
+            target_effects, control_effects, baseline_score, record_id, finding_id=finding_id,
         )
 
     # 4. Run target edits across primary + comparison fill methods (+ optional U-Net)
@@ -296,12 +303,12 @@ def run_judge(
     except (EraseError, ReaderError) as exc:
         return _indeterminate_outcome(
             ("JUDGE_TARGET_EDIT_FAILED", exc.reason_code), gates, stability, shortcut_flags,
-            target_effects, control_effects, baseline_score, record_id,
+            target_effects, control_effects, baseline_score, record_id, finding_id=finding_id,
         )
     except Exception:  # noqa: BLE001 - fail closed
         return _indeterminate_outcome(
             ("JUDGE_TARGET_EDIT_UNEXPECTED_ERROR",), gates, stability, shortcut_flags,
-            target_effects, control_effects, baseline_score, record_id,
+            target_effects, control_effects, baseline_score, record_id, finding_id=finding_id,
         )
 
     primary_edit = target_edits[0]
@@ -329,11 +336,13 @@ def run_judge(
         return _indeterminate_outcome(
             ("JUDGE_BOUNDARY_DISCONTINUITY_EXCEEDED",), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id, primary_edit, comp_edits,
+            finding_id=finding_id,
         )
     if max_drift > cfg.max_unrelated_drift:
         return _indeterminate_outcome(
             ("JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED",), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id, primary_edit, comp_edits,
+            finding_id=finding_id,
         )
     gates["edit_integrity_passed"] = True
 
@@ -341,6 +350,7 @@ def run_judge(
         return _indeterminate_outcome(
             ("JUDGE_FILL_METHOD_INSTABILITY",), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id, primary_edit, comp_edits,
+            finding_id=finding_id,
         )
     gates["fill_stability_passed"] = True
 
@@ -357,7 +367,7 @@ def run_judge(
         return _indeterminate_outcome(
             ("JUDGE_INSUFFICIENT_CONTROLS", *ctrl_res.reason_codes), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id,
-            primary_edit, comp_edits, ctrl_res.masks,
+            primary_edit, comp_edits, ctrl_res.masks, finding_id=finding_id,
         )
     gates["controls_valid"] = True
 
@@ -372,13 +382,13 @@ def run_judge(
         return _indeterminate_outcome(
             ("JUDGE_CONTROL_EDIT_FAILED", exc.reason_code), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id,
-            primary_edit, comp_edits, ctrl_res.masks,
+            primary_edit, comp_edits, ctrl_res.masks, finding_id=finding_id,
         )
     except Exception:  # noqa: BLE001
         return _indeterminate_outcome(
             ("JUDGE_CONTROL_EDIT_UNEXPECTED_ERROR",), gates, stability, shortcut_flags,
             target_effects, control_effects, baseline_score, record_id,
-            primary_edit, comp_edits, ctrl_res.masks,
+            primary_edit, comp_edits, ctrl_res.masks, finding_id=finding_id,
         )
 
     c_arr = np.asarray(control_drops, dtype=np.float64)
@@ -410,7 +420,7 @@ def run_judge(
             return _indeterminate_outcome(
                 ("JUDGE_BAD_LUNG_MASK",), gates, stability, shortcut_flags,
                 target_effects, control_effects, baseline_score, record_id,
-                primary_edit, comp_edits, ctrl_res.masks,
+                primary_edit, comp_edits, ctrl_res.masks, finding_id=finding_id,
             )
         out_of_lung_frac = float(locator.target_mask[~lmask].sum()) / float(max(1, int(locator.target_mask.sum())))
         stability["out_of_lung_target_fraction"] = out_of_lung_frac
@@ -435,7 +445,7 @@ def run_judge(
             verdict=Verdict.SHORTCUT_RISK,
             reason_codes=reasons,
         )
-        return JudgeOutcome(jc, _build_evidence_record(record_id, jc, baseline_score),
+        return JudgeOutcome(jc, _build_evidence_record(record_id, jc, baseline_score, finding_id=finding_id),
                             primary_edit, comp_edits, ctrl_res.masks)
     gates["no_shortcut_flagged"] = True
 
@@ -477,7 +487,7 @@ def run_judge(
     )
     return JudgeOutcome(
         jc,
-        _build_evidence_record(record_id, jc, baseline_score),
+        _build_evidence_record(record_id, jc, baseline_score, finding_id=finding_id),
         primary_edit,
         comp_edits,
         ctrl_res.masks,

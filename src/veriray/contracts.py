@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 SUPPORTED_FINDING: str = "pneumothorax"
+SUPPORTED_FINDINGS: tuple[str, ...] = ("pneumothorax", "effusion", "cardiomegaly")
 SYNTHETIC_COUNTERFACTUAL_LABEL: str = "SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN"
 RESEARCH_DISCLAIMER: str = (
     "IMPORTANT: Research and competition prototype only. "
@@ -213,9 +214,9 @@ class InputContract:
             raise ValueError("image_tensor contains NaN or infinite values.")
 
         normalized_finding = self.finding_id.strip().lower()
-        if normalized_finding != SUPPORTED_FINDING:
+        if normalized_finding not in SUPPORTED_FINDINGS:
             raise ValueError(
-                f"Blueprint v2.0 restricts finding_id to '{SUPPORTED_FINDING}' only; got '{self.finding_id}'."
+                f"VeriRay restricts finding_id to {SUPPORTED_FINDINGS}; got '{self.finding_id}'."
             )
         object.__setattr__(self, "finding_id", normalized_finding)
 
@@ -514,7 +515,7 @@ class VLMClaim:
 
     @property
     def is_verifiable_finding(self) -> bool:
-        return self.finding == SUPPORTED_FINDING
+        return self.finding in SUPPORTED_FINDINGS
 
 
 @dataclass(frozen=True, slots=True)
@@ -531,8 +532,8 @@ class EvidenceRecord:
         if not self.record_id or not self.record_id.strip():
             raise ValueError("EvidenceRecord record_id must be non-empty.")
         norm_finding = self.finding_id.strip().lower()
-        if norm_finding != SUPPORTED_FINDING:
-            raise ValueError(f"EvidenceRecord finding_id must be '{SUPPORTED_FINDING}'; got '{self.finding_id}'.")
+        if norm_finding not in SUPPORTED_FINDINGS:
+            raise ValueError(f"EvidenceRecord finding_id must be in {SUPPORTED_FINDINGS}; got '{self.finding_id}'.")
         object.__setattr__(self, "finding_id", norm_finding)
         if not isinstance(self.verdict, Verdict):
             raise TypeError("verdict must be Verdict.")

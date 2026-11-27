@@ -25,7 +25,7 @@ class VerifiedSentenceSchema(BaseModel):
 
 class VerifyResponse(BaseModel):
     sample_name: str
-    finding: Literal["pneumothorax"] = "pneumothorax"
+    finding: Literal["pneumothorax", "effusion", "cardiomegaly"] = "pneumothorax"
     verdict: AllowedVerdict
     reason_codes: list[str]
     user_facing_text: str

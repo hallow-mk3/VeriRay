@@ -235,6 +235,54 @@ class Reader:
         calibrator = PlattCalibrator.load(cal_path) if cal_path.is_file() else None
         return cls(model, rec, dev, calibrator=calibrator)
 
+    @classmethod
+    def load_for_finding(
+        cls,
+        models_dir: Path | str,
+        finding_id: str,
+        device: str = "cpu",
+    ) -> "Reader":
+        """Load the preferred Reader checkpoint and re-target it to *finding_id*.
+
+        The same multi-label DenseNet weights are used; only ``finding_index`` is overridden.
+        Raises ``CheckpointRecordError`` if *finding_id* is not in the model's label list.
+
+        Note: Calibration was fitted on the Pneumothorax output only. For other findings
+        no calibration is applied (``score_calibrated_optional`` will be ``None``).
+        """
+        # Normalise: map common snake_case/lowercase to label-list form
+        _LABEL_ALIASES: dict[str, str] = {
+            "pneumothorax": "Pneumothorax",
+            "effusion": "Effusion",
+            "cardiomegaly": "Cardiomegaly",
+            "atelectasis": "Atelectasis",
+            "pneumonia": "Pneumonia",
+            "consolidation": "Consolidation",
+            "edema": "Edema",
+            "lung lesion": "Lung Lesion",
+            "fracture": "Fracture",
+            "lung opacity": "Lung Opacity",
+            "enlarged cardiomediastinum": "Enlarged Cardiomediastinum",
+        }
+        canonical = _LABEL_ALIASES.get(finding_id.lower().strip(), finding_id)
+
+        reader = cls.load_preferred(models_dir, device=device)
+        label_list = reader.record.label_list
+        try:
+            idx = next(i for i, lbl in enumerate(label_list) if lbl == canonical)
+        except StopIteration:
+            raise CheckpointRecordError(
+                f"finding_id {finding_id!r} (canonical: {canonical!r}) not found in model label_list: {list(label_list)}"
+            )
+        # Override finding_index; keep all other record fields intact
+        from dataclasses import replace as _dc_replace
+        new_rec = _dc_replace(reader.record, finding_label=canonical, finding_index=idx)
+        # Pneumothorax calibrator does not transfer to other findings
+        calibrator = reader.calibrator if canonical == "Pneumothorax" else None
+        result = cls(reader.model, new_rec, reader.device, calibrator=calibrator)
+        result.finding_index = idx
+        return result
+
     # --- single code path shared with the Locator (Grad-CAM++) -------------------------------
     def feature_map(self, x: torch.Tensor) -> torch.Tensor:
         """Last convolutional feature layer: ReLU(features.norm5(...)), shape 1x1024x7x7 (same ops as xrv)."""

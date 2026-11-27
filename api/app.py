@@ -10,7 +10,7 @@ from pathlib import Path
 import time
 from typing import Any
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Query, UploadFile
 
 from api.schemas import (
     BatchVerifyResponse,
@@ -21,7 +21,7 @@ from api.schemas import (
     VerifyResponse,
 )
 from veriray.config import configs_from_yaml
-from veriray.contracts import RESEARCH_DISCLAIMER, VERDICT_USER_LANGUAGE, EvidenceRecord, Verdict
+from veriray.contracts import RESEARCH_DISCLAIMER, SUPPORTED_FINDINGS, VERDICT_USER_LANGUAGE, EvidenceRecord, Verdict
 from veriray.judge import JudgeConfig
 from veriray.locator import LocatorConfig
 from veriray.pipeline import VerificationResult, run_verification
@@ -33,7 +33,7 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 MAX_BATCH_FILES = 20
 
 
-def _to_verify_response(sample_name: str, res: VerificationResult) -> VerifyResponse:
+def _to_verify_response(sample_name: str, res: VerificationResult, finding_id: str = "pneumothorax") -> VerifyResponse:
     safe_name = sanitize_for_prompt(sample_name) or "unnamed"
     expl = []
     if res.explanation is not None:
@@ -49,6 +49,7 @@ def _to_verify_response(sample_name: str, res: VerificationResult) -> VerifyResp
 
     return VerifyResponse(
         sample_name=safe_name,
+        finding=finding_id,  # type: ignore[arg-type]
         verdict=res.verdict.value,  # type: ignore[arg-type]
         reason_codes=list(res.reason_codes),
         user_facing_text=res.output.user_facing_text if res.output is not None else VERDICT_USER_LANGUAGE[Verdict.INDETERMINATE],
@@ -121,6 +122,27 @@ def create_app(
             "streamlit_ui": "http://127.0.0.1:8502",
         }
 
+    def _get_reader_for_finding(finding_norm: str) -> tuple[Reader | None, str | None]:
+        if finding_norm == "pneumothorax":
+            return _get_reader()
+        if state["reader"] is not None:
+            # Re-target injected reader (e.g. in tests) without mutating state["reader"]
+            base_r: Reader = state["reader"]
+            canon = finding_norm.capitalize()
+            try:
+                idx = next(i for i, lbl in enumerate(base_r.record.label_list) if lbl.lower() == finding_norm)
+            except StopIteration:
+                return None, "UNSUPPORTED_FINDING"
+            from dataclasses import replace as _dc_replace
+            new_rec = _dc_replace(base_r.record, finding_label=canon, finding_index=idx)
+            return Reader(base_r.model, new_rec, base_r.device, calibrator=None), None
+        try:
+            return Reader.load_for_finding(state["models_dir"], finding_norm), None
+        except ReaderError as exc:
+            return None, exc.reason_code
+        except Exception:  # noqa: BLE001
+            return None, "READER_UNEXPECTED_ERROR"
+
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         r, err = _get_reader()
@@ -132,9 +154,15 @@ def create_app(
         )
 
     @app.post("/verify", response_model=VerifyResponse)
-    async def verify_single(file: UploadFile = File(...)) -> VerifyResponse:
+    async def verify_single(
+        file: UploadFile = File(...),
+        finding_id: str = Query("pneumothorax", description="Target finding: pneumothorax, effusion, or cardiomegaly"),
+    ) -> VerifyResponse:
         name = file.filename or "upload.png"
-        r, err = _get_reader()
+        finding_norm = finding_id.strip().lower()
+        if finding_norm not in SUPPORTED_FINDINGS:
+            return _fail_closed_response(name, "UNSUPPORTED_FINDING")
+        r, err = _get_reader_for_finding(finding_norm)
         if r is None:
             return _fail_closed_response(name, err or "READER_CHECKPOINT_MISSING")
         try:
@@ -149,17 +177,33 @@ def create_app(
                 manifest_dir=state["manifest_dir"],
                 locator_cfg=loc_cfg,
                 judge_cfg=judge_cfg,
+                finding_id=finding_norm,
             )
-            return _to_verify_response(name, res)
+            return _to_verify_response(name, res, finding_id=finding_norm)
         except Exception:  # noqa: BLE001 - never expose 500 stack traces
             return _fail_closed_response(name, "API_INTERNAL_ERROR")
 
     @app.post("/verify-batch", response_model=BatchVerifyResponse)
-    async def verify_batch(files: list[UploadFile] = File(...)) -> BatchVerifyResponse:
+    async def verify_batch(
+        files: list[UploadFile] = File(...),
+        finding_id: str = Query("pneumothorax", description="Target finding: pneumothorax, effusion, or cardiomegaly"),
+    ) -> BatchVerifyResponse:
         t0 = time.perf_counter()
         results: list[VerifyResponse] = []
         counts: dict[str, int] = {}
-        r, err = _get_reader()
+        finding_norm = finding_id.strip().lower()
+        if finding_norm not in SUPPORTED_FINDINGS:
+            for f in files[:MAX_BATCH_FILES]:
+                vr = _fail_closed_response(f.filename or "upload.png", "UNSUPPORTED_FINDING")
+                results.append(vr)
+                counts[vr.verdict] = counts.get(vr.verdict, 0) + 1
+            return BatchVerifyResponse(
+                total_cases=len(results),
+                verdict_counts=counts,
+                results=results,
+                total_elapsed_ms=round((time.perf_counter() - t0) * 1000.0, 3),
+            )
+        r, err = _get_reader_for_finding(finding_norm)
         for f in files[:MAX_BATCH_FILES]:
             name = f.filename or "upload.png"
             if r is None:
@@ -178,8 +222,9 @@ def create_app(
                             manifest_dir=state["manifest_dir"],
                             locator_cfg=loc_cfg,
                             judge_cfg=judge_cfg,
+                            finding_id=finding_norm,
                         )
-                        vr = _to_verify_response(name, res)
+                        vr = _to_verify_response(name, res, finding_id=finding_norm)
                 except Exception:  # noqa: BLE001
                     vr = _fail_closed_response(name, "API_INTERNAL_ERROR")
             results.append(vr)

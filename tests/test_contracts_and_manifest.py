@@ -82,12 +82,12 @@ def test_input_contract_enforces_single_finding_and_metadata_allowlist() -> None
     with pytest.raises(FrozenInstanceError):
         valid.finding_id = "edema"  # type: ignore[misc]
 
-    # Second/other finding rejected in v2.0
-    with pytest.raises(ValueError, match="pneumothorax"):
+    # Unsupported finding rejected
+    with pytest.raises(ValueError, match="finding_id"):
         InputContract(
             image_tensor=img,
             image_metadata_allowlist={"view": "PA"},
-            finding_id="cardiomegaly",
+            finding_id="edema",
             model_id="densenet121-res224-nih",
             preprocessing_id="xrv_res224_norm1024",
         )

@@ -93,6 +93,7 @@ def _run_frontend(
     gate_cfg: GateConfig,
     locator_cfg: LocatorConfig,
     device: str | None = None,
+    finding_id: str = "pneumothorax",
 ) -> tuple[
     Reader | None,
     InputContract | None,
@@ -108,7 +109,11 @@ def _run_frontend(
     t0 = time.perf_counter()
     try:
         if reader is None:
-            reader = Reader.load(models_dir, device=device or _default_device())
+            dev = device or _default_device()
+            if finding_id.lower().strip() == "pneumothorax":
+                reader = Reader.load(models_dir, device=dev)
+            else:
+                reader = Reader.load_for_finding(models_dir, finding_id, device=dev)
     except ReaderError as exc:
         return None, None, None, None, None, None, lat, ("reader_load", (exc.reason_code,), exc.message)
     except Exception as exc:  # noqa: BLE001
@@ -122,6 +127,7 @@ def _run_frontend(
         source,
         model_id=reader.checkpoint_id,
         preprocessing_id=PREPROCESSING_ID,
+        finding_id=finding_id,
         raw_metadata=raw_metadata,
         filename_hint=filename_hint,
         config=gate_cfg,
@@ -167,6 +173,7 @@ def run_step2(
     reader: Reader | None = None,
     gate_cfg: GateConfig | None = None,
     locator_cfg: LocatorConfig | None = None,
+    finding_id: str = "pneumothorax",
 ) -> Step2Result:
     gate_cfg, locator_cfg = gate_cfg or GateConfig(), locator_cfg or LocatorConfig()
     reader, inp, gate, reader_out, loc, display, lat, err = _run_frontend(
@@ -177,6 +184,7 @@ def run_step2(
         reader=reader,
         gate_cfg=gate_cfg,
         locator_cfg=locator_cfg,
+        finding_id=finding_id,
     )
     if err is not None:
         stage, codes, detail = err
@@ -243,6 +251,7 @@ def run_verification(
     lung_mask: np.ndarray | None = None,
     audited_shortcut_cue: bool = False,
     dataset_split_id: str = "none-single-image",
+    finding_id: str = "pneumothorax",
 ) -> VerificationResult:
     """Full offline verification pipeline: Gate -> Reader -> Locator -> Eraser + Controls -> Judge."""
     gate_cfg = gate_cfg or GateConfig()
@@ -257,6 +266,7 @@ def run_verification(
         reader=reader,
         gate_cfg=gate_cfg,
         locator_cfg=locator_cfg,
+        finding_id=finding_id,
     )
     if reader is None:
         stage, codes, detail = err or ("reader_load", ("READER_CHECKPOINT_MISSING",), "")
@@ -275,12 +285,12 @@ def run_verification(
         assert inp is not None and gate is not None and reader_out is not None and loc is not None and display is not None
         t = time.perf_counter()
         try:
-            # Automatically compute lung mask if optional offline PSPNet weights are present in models/
+            # Automatically compute thoracic ROI mask if optional offline PSPNet weights are present in models/
             effective_lung_mask = lung_mask
             if effective_lung_mask is None:
                 seg = LungSegmenter.load_optional(models_dir, device=str(reader.device))
                 if seg is not None:
-                    effective_lung_mask = seg.segment_lungs(display)
+                    effective_lung_mask = seg.segment_thoracic_roi(display, finding_id=finding_id)
             # Load optional GatedUNet eraser; silently skip if weights are absent
             unet_eraser = None
             try:
@@ -299,6 +309,7 @@ def run_verification(
                 lung_mask=effective_lung_mask,
                 audited_shortcut_cue=audited_shortcut_cue,
                 unet_eraser=unet_eraser,
+                finding_id=finding_id,
             )
             lat["judge"] = (time.perf_counter() - t) * 1000
             verdict = judge_outcome.contract.verdict
@@ -324,6 +335,7 @@ def run_verification(
         manifest = create_run_manifest(
             run_config={
                 "step": 3,
+                "finding_id": finding_id,
                 "gate": asdict(gate_cfg),
                 "locator_id": LOCATOR_ID,
                 "locator": asdict(locator_cfg),
