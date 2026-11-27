@@ -250,6 +250,11 @@ class Reader:
         Note: Calibration was fitted on the Pneumothorax output only. For other findings
         no calibration is applied (``score_calibrated_optional`` will be ``None``).
         """
+        from veriray.chest_hd import ChestHDReaderAdapter
+
+        if ChestHDReaderAdapter.is_available(models_dir):
+            return ChestHDReaderAdapter.load_for_finding(models_dir, finding_id, device=device)  # type: ignore[return-value]
+
         # Normalise: map common snake_case/lowercase to label-list form
         _LABEL_ALIASES: dict[str, str] = {
             "pneumothorax": "Pneumothorax",

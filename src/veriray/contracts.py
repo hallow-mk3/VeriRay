@@ -14,7 +14,24 @@ if TYPE_CHECKING:
 
 
 SUPPORTED_FINDING: str = "pneumothorax"
-SUPPORTED_FINDINGS: tuple[str, ...] = ("pneumothorax", "effusion", "cardiomegaly")
+SUPPORTED_FINDINGS: tuple[str, ...] = (
+    "pneumothorax",
+    "effusion",
+    "cardiomegaly",
+    "aortic_enlargement",
+    "atelectasis",
+    "calcification",
+    "consolidation",
+    "ild",
+    "infiltration",
+    "lung_opacity",
+    "nodule_mass",
+    "other_lesion",
+    "pleural_thickening",
+    "pulmonary_fibrosis",
+    "tuberculosis",
+    "pneumonia",
+)
 SYNTHETIC_COUNTERFACTUAL_LABEL: str = "SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN"
 RESEARCH_DISCLAIMER: str = (
     "IMPORTANT: Research and competition prototype only. "

@@ -110,7 +110,11 @@ def _run_frontend(
     try:
         if reader is None:
             dev = device or _default_device()
-            if finding_id.lower().strip() == "pneumothorax":
+            from veriray.chest_hd import ChestHDReaderAdapter
+
+            if ChestHDReaderAdapter.is_available(models_dir):
+                reader = ChestHDReaderAdapter.load_for_finding(models_dir, finding_id, device=dev)  # type: ignore[assignment]
+            elif finding_id.lower().strip() == "pneumothorax":
                 reader = Reader.load(models_dir, device=dev)
             else:
                 reader = Reader.load_for_finding(models_dir, finding_id, device=dev)
@@ -122,11 +126,12 @@ def _run_frontend(
         )
     lat["reader_load"] = (time.perf_counter() - t0) * 1000
 
+    prep_id = getattr(reader, "preprocessing_id", PREPROCESSING_ID)
     t = time.perf_counter()
     inp, gate = run_input_gate(
         source,
         model_id=reader.checkpoint_id,
-        preprocessing_id=PREPROCESSING_ID,
+        preprocessing_id=prep_id,
         finding_id=finding_id,
         raw_metadata=raw_metadata,
         filename_hint=filename_hint,
@@ -151,7 +156,10 @@ def _run_frontend(
 
     try:
         t = time.perf_counter()
-        loc = locate(reader, x, locator_cfg)
+        if hasattr(reader, "locate_224"):
+            loc = reader.locate_224(x, locator_cfg)  # type: ignore[attr-defined]
+        else:
+            loc = locate(reader, x, locator_cfg)
         lat["locator"] = (time.perf_counter() - t) * 1000
     except LocatorError as exc:
         return reader, inp, gate, reader_out, None, display, lat, ("locator", (exc.reason_code,), str(exc))

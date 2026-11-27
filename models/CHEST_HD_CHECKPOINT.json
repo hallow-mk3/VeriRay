@@ -1,0 +1,258 @@
+{
+  "weights_id": "convnext_tiny_fpn_chest16_512",
+  "filename": "convnext_tiny_fpn_chest16_512.pt",
+  "sha256": "18fe69565a47293e246012ac353d928ac09821b8f770c8206acc2cf6fbf8ba8c",
+  "img_size": 512,
+  "seg_size": 128,
+  "findings": [
+    "aortic_enlargement",
+    "atelectasis",
+    "calcification",
+    "cardiomegaly",
+    "consolidation",
+    "ild",
+    "infiltration",
+    "lung_opacity",
+    "nodule_mass",
+    "other_lesion",
+    "effusion",
+    "pleural_thickening",
+    "pneumothorax",
+    "pulmonary_fibrosis",
+    "tuberculosis",
+    "pneumonia"
+  ],
+  "best_macro_val_auroc": 0.9571,
+  "val_metrics": {
+    "aortic_enlargement": {
+      "display_name": "Aortic enlargement",
+      "val_total": 2290,
+      "val_positives": 462,
+      "auroc": 0.9859,
+      "auprc": 0.9457,
+      "pos_mask_dice": 0.8449,
+      "pos_mask_cases": 462
+    },
+    "atelectasis": {
+      "display_name": "Atelectasis",
+      "val_total": 2290,
+      "val_positives": 17,
+      "auroc": 0.9657,
+      "auprc": 0.4934,
+      "pos_mask_dice": 0.4304,
+      "pos_mask_cases": 17
+    },
+    "calcification": {
+      "display_name": "Calcification",
+      "val_total": 2290,
+      "val_positives": 70,
+      "auroc": 0.9267,
+      "auprc": 0.3931,
+      "pos_mask_dice": 0.3058,
+      "pos_mask_cases": 70
+    },
+    "cardiomegaly": {
+      "display_name": "Cardiomegaly",
+      "val_total": 2290,
+      "val_positives": 331,
+      "auroc": 0.9844,
+      "auprc": 0.9199,
+      "pos_mask_dice": 0.8548,
+      "pos_mask_cases": 331
+    },
+    "consolidation": {
+      "display_name": "Consolidation",
+      "val_total": 2290,
+      "val_positives": 46,
+      "auroc": 0.9768,
+      "auprc": 0.4816,
+      "pos_mask_dice": 0.5626,
+      "pos_mask_cases": 46
+    },
+    "ild": {
+      "display_name": "ILD (Interstitial Lung Disease)",
+      "val_total": 2290,
+      "val_positives": 60,
+      "auroc": 0.9559,
+      "auprc": 0.5463,
+      "pos_mask_dice": 0.4456,
+      "pos_mask_cases": 60
+    },
+    "infiltration": {
+      "display_name": "Infiltration",
+      "val_total": 2290,
+      "val_positives": 101,
+      "auroc": 0.9734,
+      "auprc": 0.697,
+      "pos_mask_dice": 0.5788,
+      "pos_mask_cases": 101
+    },
+    "lung_opacity": {
+      "display_name": "Lung Opacity",
+      "val_total": 6227,
+      "val_positives": 1087,
+      "auroc": 0.9163,
+      "auprc": 0.694,
+      "pos_mask_dice": 0.6142,
+      "pos_mask_cases": 1087
+    },
+    "nodule_mass": {
+      "display_name": "Nodule / Mass",
+      "val_total": 2290,
+      "val_positives": 113,
+      "auroc": 0.9414,
+      "auprc": 0.5045,
+      "pos_mask_dice": 0.3568,
+      "pos_mask_cases": 113
+    },
+    "other_lesion": {
+      "display_name": "Other lesion",
+      "val_total": 2290,
+      "val_positives": 147,
+      "auroc": 0.9151,
+      "auprc": 0.3895,
+      "pos_mask_dice": 0.1855,
+      "pos_mask_cases": 147
+    },
+    "effusion": {
+      "display_name": "Pleural effusion",
+      "val_total": 2290,
+      "val_positives": 155,
+      "auroc": 0.979,
+      "auprc": 0.8433,
+      "pos_mask_dice": 0.6008,
+      "pos_mask_cases": 155
+    },
+    "pleural_thickening": {
+      "display_name": "Pleural thickening",
+      "val_total": 2290,
+      "val_positives": 305,
+      "auroc": 0.9538,
+      "auprc": 0.7422,
+      "pos_mask_dice": 0.414,
+      "pos_mask_cases": 305
+    },
+    "pneumothorax": {
+      "display_name": "Pneumothorax",
+      "val_total": 3887,
+      "val_positives": 375,
+      "auroc": 0.971,
+      "auprc": 0.8111,
+      "pos_mask_dice": 0.5137,
+      "pos_mask_cases": 375
+    },
+    "pulmonary_fibrosis": {
+      "display_name": "Pulmonary fibrosis",
+      "val_total": 2290,
+      "val_positives": 242,
+      "auroc": 0.9658,
+      "auprc": 0.7958,
+      "pos_mask_dice": 0.4754,
+      "pos_mask_cases": 242
+    },
+    "tuberculosis": {
+      "display_name": "Tuberculosis",
+      "val_total": 639,
+      "val_positives": 119,
+      "auroc": 1.0,
+      "auprc": 1.0,
+      "pos_mask_dice": null,
+      "pos_mask_cases": 0
+    },
+    "pneumonia": {
+      "display_name": "Pneumonia",
+      "val_total": 3937,
+      "val_positives": 899,
+      "auroc": 0.9024,
+      "auprc": 0.7259,
+      "pos_mask_dice": 0.6482,
+      "pos_mask_cases": 899
+    },
+    "_macro_auroc": 0.9571
+  },
+  "platt_calibrators": {
+    "aortic_enlargement": {
+      "coef": 1.261378,
+      "intercept": -0.622574
+    },
+    "atelectasis": {
+      "coef": 0.938321,
+      "intercept": -2.328941
+    },
+    "calcification": {
+      "coef": 0.925611,
+      "intercept": -0.902034
+    },
+    "cardiomegaly": {
+      "coef": 1.018633,
+      "intercept": -1.065106
+    },
+    "consolidation": {
+      "coef": 0.742971,
+      "intercept": -1.522256
+    },
+    "ild": {
+      "coef": 0.8845,
+      "intercept": -1.177927
+    },
+    "infiltration": {
+      "coef": 0.833721,
+      "intercept": -1.194472
+    },
+    "lung_opacity": {
+      "coef": 0.797624,
+      "intercept": -1.987994
+    },
+    "nodule_mass": {
+      "coef": 0.807304,
+      "intercept": -1.000287
+    },
+    "other_lesion": {
+      "coef": 0.742721,
+      "intercept": -1.292253
+    },
+    "effusion": {
+      "coef": 0.87476,
+      "intercept": -0.88513
+    },
+    "pleural_thickening": {
+      "coef": 0.940668,
+      "intercept": -0.584773
+    },
+    "pneumothorax": {
+      "coef": 0.999932,
+      "intercept": -1.323916
+    },
+    "pulmonary_fibrosis": {
+      "coef": 0.811638,
+      "intercept": -0.942492
+    },
+    "tuberculosis": {
+      "coef": 1.743274,
+      "intercept": 3.220835
+    },
+    "pneumonia": {
+      "coef": 0.931823,
+      "intercept": -2.25706
+    }
+  },
+  "train_counts_by_source": {
+    "vinbigdata": 12710,
+    "tb_cxr": 3561,
+    "siim_pneumo": 9078,
+    "rsna_pneumonia": 22747
+  },
+  "val_counts_by_source": {
+    "vinbigdata": 2290,
+    "tb_cxr": 639,
+    "siim_pneumo": 1597,
+    "rsna_pneumonia": 3937
+  },
+  "training_datasets": [
+    "VinBigData Chest X-ray 512x512 (14 radiologist box classes + No finding)",
+    "SIIM-ACR Pneumothorax Segmentation (exact pixel masks)",
+    "RSNA Pneumonia Detection Challenge (radiologist opacity/pneumonia boxes)",
+    "TB Chest Radiography Database (Tuberculosis + Normal)"
+  ],
+  "license": "Research prototype only \u2014 public datasets under respective research terms."
+}

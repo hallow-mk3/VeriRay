@@ -28,8 +28,25 @@ PSPNET_TARGETS = (
 )
 LEFT_LUNG_IDX = 4
 RIGHT_LUNG_IDX = 5
+LEFT_HILUS_IDX = 6
+RIGHT_HILUS_IDX = 7
 HEART_IDX = 8
+AORTA_IDX = 9
+DIAPHRAGM_IDX = 10
 MEDIASTINUM_IDX = 11
+WEASAND_IDX = 12
+SPINE_IDX = 13
+
+_THORACIC_ROI_MAP: dict[str, list[int]] = {
+    "cardiomegaly": [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, HEART_IDX, MEDIASTINUM_IDX],
+    "enlarged cardiomediastinum": [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, HEART_IDX, AORTA_IDX, MEDIASTINUM_IDX],
+    "aortic_enlargement": [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, HEART_IDX, AORTA_IDX, MEDIASTINUM_IDX],
+    "effusion": [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, DIAPHRAGM_IDX],
+    "pleural_thickening": [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, DIAPHRAGM_IDX],
+    "calcification": list(range(len(PSPNET_TARGETS))),
+    "fracture": list(range(len(PSPNET_TARGETS))),
+    "other_lesion": list(range(len(PSPNET_TARGETS))),
+}
 
 
 class AnatomyError(Exception):
@@ -113,10 +130,9 @@ class LungSegmenter:
         mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, 3, 1, 1)
         t = (t - mean) / std
-        indices = (
-            [LEFT_LUNG_IDX, RIGHT_LUNG_IDX, HEART_IDX, MEDIASTINUM_IDX]
-            if finding_id.lower().strip() == "cardiomegaly"
-            else [LEFT_LUNG_IDX, RIGHT_LUNG_IDX]
+        indices = _THORACIC_ROI_MAP.get(
+            finding_id.lower().strip(),
+            [LEFT_LUNG_IDX, RIGHT_LUNG_IDX],
         )
         with torch.inference_mode():
             logits = self.model(t)

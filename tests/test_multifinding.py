@@ -13,7 +13,10 @@ from veriray.reader import CheckpointRecordError, Reader
 
 
 def test_supported_findings_tuple():
-    assert set(SUPPORTED_FINDINGS) == {"pneumothorax", "effusion", "cardiomegaly"}
+    assert {"pneumothorax", "effusion", "cardiomegaly", "pneumonia", "tuberculosis", "nodule_mass"}.issubset(
+        set(SUPPORTED_FINDINGS)
+    )
+    assert len(SUPPORTED_FINDINGS) == 16
 
 
 def test_reader_load_for_finding_retargets_index(fake_models_dir: Path):
