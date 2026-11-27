@@ -1,0 +1,538 @@
+{
+  "split_used_for_models": "val",
+  "test_split_model_outputs_read": false,
+  "frozen_config_path": "configs/frozen.yaml",
+  "split_counts_and_bboxes": {
+    "mass": {
+      "manifest_label": "Mass",
+      "bbox_label": "Mass",
+      "train_pos": 3285,
+      "val_pos": 749,
+      "test_pos": 1748,
+      "bbox_total": 85,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 85
+    },
+    "nodule": {
+      "manifest_label": "Nodule",
+      "bbox_label": "Nodule",
+      "train_pos": 3802,
+      "val_pos": 906,
+      "test_pos": 1623,
+      "bbox_total": 79,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 79
+    },
+    "effusion": {
+      "manifest_label": "Effusion",
+      "bbox_label": "Effusion",
+      "train_pos": 6964,
+      "val_pos": 1695,
+      "test_pos": 4658,
+      "bbox_total": 153,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 153
+    },
+    "cardiomegaly": {
+      "manifest_label": "Cardiomegaly",
+      "bbox_label": "Cardiomegaly",
+      "train_pos": 1363,
+      "val_pos": 344,
+      "test_pos": 1069,
+      "bbox_total": 146,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 146
+    },
+    "atelectasis": {
+      "manifest_label": "Atelectasis",
+      "bbox_label": "Atelectasis",
+      "train_pos": 6745,
+      "val_pos": 1535,
+      "test_pos": 3279,
+      "bbox_total": 180,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 180
+    },
+    "infiltrate": {
+      "manifest_label": "Infiltration",
+      "bbox_label": "Infiltrate",
+      "train_pos": 11134,
+      "val_pos": 2648,
+      "test_pos": 6112,
+      "bbox_total": 123,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 123
+    },
+    "pneumonia": {
+      "manifest_label": "Pneumonia",
+      "bbox_label": "Pneumonia",
+      "train_pos": 718,
+      "val_pos": 158,
+      "test_pos": 555,
+      "bbox_total": 120,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 120
+    },
+    "pneumothorax": {
+      "manifest_label": "Pneumothorax",
+      "bbox_label": "Pneumothorax",
+      "train_pos": 2195,
+      "val_pos": 442,
+      "test_pos": 2665,
+      "bbox_total": 98,
+      "bbox_train": 0,
+      "bbox_val": 0,
+      "bbox_test": 98
+    }
+  },
+  "reader_metrics_val": {
+    "mass": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 749,
+        "auroc": 0.7938941960858878,
+        "auroc_ci95": [
+          0.774704084532891,
+          0.8150801839000037
+        ],
+        "auprc": 0.1773406653628962,
+        "auprc_ci95": [
+          0.14788906920666495,
+          0.21295599379922514
+        ]
+      },
+      "chex_model": null
+    },
+    "nodule": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 906,
+        "auroc": 0.6557495195604256,
+        "auroc_ci95": [
+          0.6249182006391015,
+          0.6834626094635671
+        ],
+        "auprc": 0.12478546758752893,
+        "auprc_ci95": [
+          0.10235621404241331,
+          0.15046385284708857
+        ]
+      },
+      "chex_model": null
+    },
+    "effusion": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 1695,
+        "auroc": 0.8316749223400555,
+        "auroc_ci95": [
+          0.8182556191208438,
+          0.8450078035239953
+        ],
+        "auprc": 0.391468717936393,
+        "auprc_ci95": [
+          0.3606970264590939,
+          0.42196650837444377
+        ]
+      },
+      "chex_model": {
+        "auroc": 0.7738154851773094,
+        "auroc_ci95": [
+          0.7589231133490463,
+          0.7877092058448861
+        ],
+        "auprc": 0.2412662430733204,
+        "auprc_ci95": [
+          0.21736655169004812,
+          0.2686055062753882
+        ]
+      }
+    },
+    "cardiomegaly": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 344,
+        "auroc": 0.8881070583145253,
+        "auroc_ci95": [
+          0.8691285300709856,
+          0.90552891106515
+        ],
+        "auprc": 0.2098904801589452,
+        "auprc_ci95": [
+          0.16117105356593323,
+          0.26870305279243967
+        ]
+      },
+      "chex_model": {
+        "auroc": 0.686476581596519,
+        "auroc_ci95": [
+          0.6550745977253886,
+          0.7149242953208855
+        ],
+        "auprc": 0.0341684094587537,
+        "auprc_ci95": [
+          0.027152925089080213,
+          0.04392989479538688
+        ]
+      }
+    },
+    "atelectasis": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 1535,
+        "auroc": 0.7535351893069409,
+        "auroc_ci95": [
+          0.737846211622434,
+          0.768967730417721
+        ],
+        "auprc": 0.2236191993486984,
+        "auprc_ci95": [
+          0.19869712454710792,
+          0.25257146474887815
+        ]
+      },
+      "chex_model": {
+        "auroc": 0.7060880926113846,
+        "auroc_ci95": [
+          0.687529901850123,
+          0.72585117049041
+        ],
+        "auprc": 0.15839162125308698,
+        "auprc_ci95": [
+          0.14134548739352873,
+          0.17900184579880246
+        ]
+      }
+    },
+    "infiltrate": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 2648,
+        "auroc": 0.6551736097723173,
+        "auroc_ci95": [
+          0.6370966237018605,
+          0.6703410554569177
+        ],
+        "auprc": 0.2594486960101447,
+        "auprc_ci95": [
+          0.23844569877753694,
+          0.2825012239447076
+        ]
+      },
+      "chex_model": null
+    },
+    "pneumonia": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 158,
+        "auroc": 0.7141264902941717,
+        "auroc_ci95": [
+          0.6723945793728201,
+          0.7533265935514085
+        ],
+        "auprc": 0.024211221320691426,
+        "auprc_ci95": [
+          0.01688192005024441,
+          0.04091307241120326
+        ]
+      },
+      "chex_model": {
+        "auroc": 0.6665472354264215,
+        "auroc_ci95": [
+          0.6252563243330421,
+          0.7113985398965339
+        ],
+        "auprc": 0.01687918146807718,
+        "auprc_ci95": [
+          0.01318549607789954,
+          0.022566690917743232
+        ]
+      }
+    },
+    "pneumothorax": {
+      "nih_model": {
+        "n": 17222,
+        "positives": 442,
+        "auroc": 0.688053273936328,
+        "auroc_ci95": [
+          0.6542171816862479,
+          0.7213887289249001
+        ],
+        "auprc": 0.05125877149304269,
+        "auprc_ci95": [
+          0.03962772960431166,
+          0.06539997307358864
+        ]
+      },
+      "chex_model": {
+        "auroc": 0.6745650391815293,
+        "auroc_ci95": [
+          0.639248711544833,
+          0.7067233642383067
+        ],
+        "auprc": 0.05498593062044245,
+        "auprc_ci95": [
+          0.04034268333093866,
+          0.07286604534640424
+        ]
+      }
+    }
+  },
+  "locator_val_bbox_note": "0 validation bounding-box cases across all 8 findings in BBox_List_2017.csv (all 984 boxes are in the locked test split).",
+  "judge_val_summary": {
+    "mass": {
+      "sample_n": 100,
+      "verdicts": {
+        "NOT SUPPORTED": 26,
+        "INDETERMINATE": 31,
+        "SHORTCUT RISK": 42,
+        "MODEL-SUPPORTED": 1
+      },
+      "gate_buckets": {
+        "reader_score_gate": 26,
+        "controls_invalid": 9,
+        "localization_shortcut": 42,
+        "localization_gate": 11,
+        "integrity_gate": 11,
+        "accepted_model_supported": 1
+      },
+      "reason_codes": {
+        "READER_SCORE_BELOW_THRESHOLD": 26,
+        "NO_FINDING_FLAGGED_BY_READER": 25,
+        "TARGET_DROP_BELOW_THRESHOLD": 16,
+        "JUDGE_INSUFFICIENT_CONTROLS": 9,
+        "INSUFFICIENT_MATCHED_CONTROLS": 9,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 42,
+        "LOCALIZATION_DIFFUSE": 11,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 16,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 10,
+        "JUDGE_ALL_GATES_PASSED": 1,
+        "JUDGE_FILL_METHOD_INSTABILITY": 1,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 5,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 3
+      },
+      "crops_saved": 10
+    },
+    "nodule": {
+      "sample_n": 100,
+      "verdicts": {
+        "SHORTCUT RISK": 12,
+        "INDETERMINATE": 39,
+        "NOT SUPPORTED": 49
+      },
+      "gate_buckets": {
+        "localization_shortcut": 12,
+        "integrity_gate": 16,
+        "controls_invalid": 22,
+        "reader_score_gate": 49,
+        "localization_gate": 1
+      },
+      "reason_codes": {
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 12,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 16,
+        "JUDGE_INSUFFICIENT_CONTROLS": 22,
+        "INSUFFICIENT_MATCHED_CONTROLS": 22,
+        "READER_SCORE_BELOW_THRESHOLD": 49,
+        "NO_FINDING_FLAGGED_BY_READER": 49,
+        "TARGET_DROP_BELOW_THRESHOLD": 24,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 13,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 21,
+        "LOCALIZATION_DIFFUSE": 1
+      },
+      "crops_saved": 10
+    },
+    "effusion": {
+      "sample_n": 100,
+      "verdicts": {
+        "NOT SUPPORTED": 42,
+        "INDETERMINATE": 37,
+        "SHORTCUT RISK": 19,
+        "MODEL-SUPPORTED": 2
+      },
+      "gate_buckets": {
+        "reader_score_gate": 42,
+        "integrity_gate": 14,
+        "localization_shortcut": 19,
+        "controls_invalid": 20,
+        "accepted_model_supported": 2,
+        "localization_gate": 3
+      },
+      "reason_codes": {
+        "READER_SCORE_BELOW_THRESHOLD": 42,
+        "NO_FINDING_FLAGGED_BY_READER": 40,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 19,
+        "JUDGE_FILL_METHOD_INSTABILITY": 6,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 19,
+        "TARGET_DROP_BELOW_THRESHOLD": 23,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 14,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 8,
+        "JUDGE_INSUFFICIENT_CONTROLS": 20,
+        "INSUFFICIENT_MATCHED_CONTROLS": 20,
+        "JUDGE_ALL_GATES_PASSED": 2,
+        "LOCALIZATION_DIFFUSE": 3,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 1
+      },
+      "crops_saved": 10
+    },
+    "cardiomegaly": {
+      "sample_n": 100,
+      "verdicts": {
+        "INDETERMINATE": 33,
+        "MODEL-SUPPORTED": 3,
+        "NOT SUPPORTED": 43,
+        "SHORTCUT RISK": 21
+      },
+      "gate_buckets": {
+        "integrity_gate": 22,
+        "accepted_model_supported": 3,
+        "reader_score_gate": 43,
+        "localization_shortcut": 21,
+        "controls_invalid": 6,
+        "localization_gate": 5
+      },
+      "reason_codes": {
+        "JUDGE_FILL_METHOD_INSTABILITY": 15,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 7,
+        "JUDGE_ALL_GATES_PASSED": 3,
+        "READER_SCORE_BELOW_THRESHOLD": 43,
+        "NO_FINDING_FLAGGED_BY_READER": 43,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 21,
+        "TARGET_DROP_BELOW_THRESHOLD": 26,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 27,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 25,
+        "JUDGE_INSUFFICIENT_CONTROLS": 6,
+        "INSUFFICIENT_MATCHED_CONTROLS": 6,
+        "LOCALIZATION_DIFFUSE": 5,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 1
+      },
+      "crops_saved": 10
+    },
+    "atelectasis": {
+      "sample_n": 100,
+      "verdicts": {
+        "NOT SUPPORTED": 25,
+        "INDETERMINATE": 58,
+        "SHORTCUT RISK": 17
+      },
+      "gate_buckets": {
+        "reader_score_gate": 25,
+        "controls_invalid": 25,
+        "integrity_gate": 21,
+        "localization_shortcut": 17,
+        "localization_gate": 12
+      },
+      "reason_codes": {
+        "READER_SCORE_BELOW_THRESHOLD": 25,
+        "NO_FINDING_FLAGGED_BY_READER": 25,
+        "TARGET_DROP_BELOW_THRESHOLD": 20,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 16,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 19,
+        "JUDGE_INSUFFICIENT_CONTROLS": 25,
+        "INSUFFICIENT_MATCHED_CONTROLS": 25,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 21,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 17,
+        "LOCALIZATION_DIFFUSE": 12,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 1
+      },
+      "crops_saved": 10
+    },
+    "infiltrate": {
+      "sample_n": 100,
+      "verdicts": {
+        "INDETERMINATE": 52,
+        "SHORTCUT RISK": 13,
+        "NOT SUPPORTED": 35
+      },
+      "gate_buckets": {
+        "integrity_gate": 6,
+        "controls_invalid": 36,
+        "localization_gate": 10,
+        "localization_shortcut": 13,
+        "reader_score_gate": 35
+      },
+      "reason_codes": {
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 6,
+        "JUDGE_INSUFFICIENT_CONTROLS": 36,
+        "INSUFFICIENT_MATCHED_CONTROLS": 36,
+        "LOCALIZATION_DIFFUSE": 10,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 13,
+        "READER_SCORE_BELOW_THRESHOLD": 35,
+        "NO_FINDING_FLAGGED_BY_READER": 35,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 24,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 29,
+        "TARGET_DROP_BELOW_THRESHOLD": 27,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 1
+      },
+      "crops_saved": 10
+    },
+    "pneumonia": {
+      "sample_n": 100,
+      "verdicts": {
+        "INDETERMINATE": 49,
+        "NOT SUPPORTED": 12,
+        "SHORTCUT RISK": 39
+      },
+      "gate_buckets": {
+        "controls_invalid": 12,
+        "reader_score_gate": 12,
+        "localization_gate": 29,
+        "localization_shortcut": 39,
+        "integrity_gate": 7,
+        "gate_reject": 1
+      },
+      "reason_codes": {
+        "JUDGE_INSUFFICIENT_CONTROLS": 12,
+        "INSUFFICIENT_MATCHED_CONTROLS": 12,
+        "READER_SCORE_BELOW_THRESHOLD": 12,
+        "NO_FINDING_FLAGGED_BY_READER": 11,
+        "TARGET_DROP_BELOW_THRESHOLD": 11,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 10,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 10,
+        "LOCALIZATION_DIFFUSE": 27,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 3,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 39,
+        "JUDGE_MASK_UNSTABLE": 2,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 7,
+        "EXCESSIVE_CLIPPING": 1
+      },
+      "crops_saved": 10
+    },
+    "pneumothorax": {
+      "sample_n": 100,
+      "verdicts": {
+        "INDETERMINATE": 38,
+        "NOT SUPPORTED": 49,
+        "SHORTCUT RISK": 13
+      },
+      "gate_buckets": {
+        "controls_invalid": 19,
+        "reader_score_gate": 49,
+        "integrity_gate": 14,
+        "localization_shortcut": 13,
+        "localization_gate": 5
+      },
+      "reason_codes": {
+        "JUDGE_INSUFFICIENT_CONTROLS": 19,
+        "INSUFFICIENT_MATCHED_CONTROLS": 19,
+        "READER_SCORE_BELOW_THRESHOLD": 49,
+        "NO_FINDING_FLAGGED_BY_READER": 48,
+        "TARGET_DROP_BELOW_THRESHOLD": 43,
+        "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 25,
+        "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 27,
+        "JUDGE_UNRELATED_LABEL_DRIFT_EXCEEDED": 14,
+        "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 13,
+        "LOCALIZATION_DIFFUSE": 5,
+        "LOCALIZATION_IMPLAUSIBLY_LARGE": 2
+      },
+      "crops_saved": 10
+    }
+  },
+  "elapsed_sec": 349.65
+}
