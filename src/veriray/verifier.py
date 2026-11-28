@@ -17,16 +17,75 @@ import math
 import re
 from typing import Any
 
-from veriray.contracts import SUPPORTED_FINDING, VERDICT_USER_LANGUAGE, EvidenceRecord, ExplanationSentence, Verdict
+from veriray.contracts import VERDICT_USER_LANGUAGE, EvidenceRecord, ExplanationSentence, Verdict
 from veriray.safety import check_output_safety
 
-# Other thoracic findings that must NEVER be explained unless verified (only pneumothorax is verified).
-_OTHER_FINDINGS: tuple[str, ...] = (
-    "atelectasis", "consolidation", "infiltration", "edema", "emphysema", "fibrosis",
-    "effusion", "pneumonia", "pleural thickening", "pleural_thickening", "cardiomegaly",
-    "nodule", "mass", "hernia", "lung lesion", "fracture", "lung opacity",
-    "enlarged cardiomediastinum", "tuberculosis", "covid", "cancer", "tumor",
+# Every pathology term across Chest X-ray & Brain MRI that must NEVER be narrated unless
+# it is the exact finding verified by ``evidence.finding_id``.
+_ALL_KNOWN_FINDINGS: tuple[str, ...] = (
+    "pneumothorax",
+    "aortic enlargement",
+    "aortic_enlargement",
+    "atelectasis",
+    "calcification",
+    "cardiomegaly",
+    "consolidation",
+    "ild",
+    "interstitial lung disease",
+    "infiltration",
+    "lung opacity",
+    "lung_opacity",
+    "nodule mass",
+    "nodule_mass",
+    "nodule",
+    "mass",
+    "other lesion",
+    "other_lesion",
+    "pleural effusion",
+    "pleural_effusion",
+    "effusion",
+    "pleural thickening",
+    "pleural_thickening",
+    "pulmonary fibrosis",
+    "pulmonary_fibrosis",
+    "fibrosis",
+    "pneumonia",
+    "edema",
+    "emphysema",
+    "hernia",
+    "lung lesion",
+    "fracture",
+    "enlarged cardiomediastinum",
+    "tuberculosis",
+    "covid",
+    "cancer",
+    "tumor",
+    "glioma",
+    "meningioma",
+    "pituitary",
+    "ischemic stroke",
+    "ischemic_stroke",
+    "stroke",
+    "hemorrhage",
 )
+
+_ALLOWED_FINDING_TERMS: dict[str, frozenset[str]] = {
+    "pneumothorax": frozenset({"pneumothorax"}),
+    "aortic_enlargement": frozenset({"aortic_enlargement", "aortic enlargement"}),
+    "atelectasis": frozenset({"atelectasis"}),
+    "calcification": frozenset({"calcification"}),
+    "cardiomegaly": frozenset({"cardiomegaly"}),
+    "consolidation": frozenset({"consolidation"}),
+    "ild": frozenset({"ild", "interstitial lung disease"}),
+    "infiltration": frozenset({"infiltration"}),
+    "lung_opacity": frozenset({"lung_opacity", "lung opacity"}),
+    "nodule_mass": frozenset({"nodule_mass", "nodule mass", "nodule", "mass"}),
+    "other_lesion": frozenset({"other_lesion", "other lesion"}),
+    "effusion": frozenset({"effusion", "pleural effusion", "pleural_effusion"}),
+    "pleural_thickening": frozenset({"pleural_thickening", "pleural thickening"}),
+    "pulmonary_fibrosis": frozenset({"pulmonary_fibrosis", "pulmonary fibrosis", "fibrosis"}),
+    "pneumonia": frozenset({"pneumonia"}),
+}
 
 _NUMBER_RE = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:\.\d+)?%?(?![A-Za-z_])")
 
@@ -89,7 +148,13 @@ def verify_sentence(sentence: ExplanationSentence, evidence: EvidenceRecord) -> 
         reasons.extend(safety.reason_codes)
 
     lower = sentence.text.lower()
-    for other in _OTHER_FINDINGS:
+    fid_norm = evidence.finding_id.strip().lower().replace(" ", "_").replace("/", "_")
+    if fid_norm == "pleural_effusion":
+        fid_norm = "effusion"
+    allowed_terms = _ALLOWED_FINDING_TERMS.get(fid_norm, frozenset({fid_norm, fid_norm.replace("_", " ")}))
+    for other in _ALL_KNOWN_FINDINGS:
+        if other in allowed_terms:
+            continue
         if re.search(rf"\b{re.escape(other)}\b", lower):
             reasons.append(f"UNVERIFIED_FINDING_MENTIONED:{other}")
             break
@@ -98,9 +163,10 @@ def verify_sentence(sentence: ExplanationSentence, evidence: EvidenceRecord) -> 
         reasons.append("INSTRUCTION_META_LANGUAGE_DETECTED")
 
     if evidence.verdict is not Verdict.MODEL_SUPPORTED:
-        if re.search(rf"\b{SUPPORTED_FINDING}\b", lower) and "not supported" not in lower and "shortcut" not in lower and "could not produce" not in lower:
-            if "supports" in lower or "confirmed" in lower or "passed" in lower:
-                reasons.append("FINDING_SUPPORTED_CLAIM_WITHOUT_VERDICT")
+        if any(re.search(rf"\b{re.escape(t)}\b", lower) for t in allowed_terms):
+            if "not supported" not in lower and "shortcut" not in lower and "could not produce" not in lower:
+                if "supports" in lower or "confirmed" in lower or "passed" in lower:
+                    reasons.append("FINDING_SUPPORTED_CLAIM_WITHOUT_VERDICT")
 
     cited_values: list[float] = []
     for eid in sentence.evidence_ids:

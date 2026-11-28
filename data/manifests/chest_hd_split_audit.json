@@ -1,0 +1,59 @@
+{
+  "manifest_file": "data/manifests/chest_hd_manifest.csv",
+  "manifest_sha256": "3513eab4c9b966761f577753f1012fb5e61789092ec9469e8fe3ddf7c0aecf0e",
+  "tb_cxr_included": false,
+  "val_membership_modified": false,
+  "clustering_rule": "exact_64bit_dhash_or_(dhash_hamming<=6_AND_32x32_cosine>=0.985)_flip_invariant_across_all_sources",
+  "total_scans": 52359,
+  "total_clusters": 49458,
+  "singleton_clusters": 46562,
+  "multi_image_clusters": 2896,
+  "cross_source_clusters": 2887,
+  "top_10_cluster_sizes": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    2,
+    2,
+    2,
+    2,
+    2
+  ],
+  "val_contaminated_clusters_purged": 743,
+  "dropped_non_val_items_clustering_with_val": 744,
+  "unique_clusters_by_split": {
+    "train": 34362,
+    "val": 7753,
+    "test": 7343
+  },
+  "counts_by_split_and_source": {
+    "test": {
+      "vinbigdata": 2256,
+      "siim_pneumo": 1493,
+      "rsna_pneumonia": 3972
+    },
+    "train": {
+      "vinbigdata": 10453,
+      "siim_pneumo": 7241,
+      "rsna_pneumonia": 18376
+    },
+    "val": {
+      "vinbigdata": 2290,
+      "siim_pneumo": 1597,
+      "rsna_pneumonia": 3937
+    },
+    "dropped_val_leak": {
+      "vinbigdata": 1,
+      "siim_pneumo": 344,
+      "rsna_pneumonia": 399
+    }
+  },
+  "split_totals": {
+    "test": 7721,
+    "train": 36070,
+    "val": 7824,
+    "dropped_val_leak": 744
+  }
+}

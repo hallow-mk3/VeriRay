@@ -12,7 +12,6 @@ from typing import Iterable
 
 from veriray.contracts import (
     RESEARCH_DISCLAIMER,
-    SUPPORTED_FINDING,
     VERDICT_USER_LANGUAGE,
     EvidenceRecord,
     ExplanationSentence,
@@ -21,6 +20,15 @@ from veriray.contracts import (
 )
 from veriray.safety import sanitize_for_prompt
 from veriray.verifier import VerifierReport, fixed_template_fallback, verify_explanation
+
+
+def _canon_finding_key(name: str) -> str:
+    norm = name.strip().lower().replace(" ", "_").replace("/", "_")
+    return "effusion" if norm == "pleural_effusion" else norm
+
+
+def _finding_prose(finding_id: str) -> str:
+    return _canon_finding_key(finding_id).replace("_", " ")
 
 
 @dataclass(frozen=True)
@@ -44,6 +52,7 @@ def build_candidate_sentences(
 
     verdict = evidence.verdict
     items = evidence.items
+    finding_label = _finding_prose(evidence.finding_id)
     if verdict is Verdict.INDETERMINATE:
         return []  # §8: no partial or unverified narration on INDETERMINATE; verifier outputs fixed template.
 
@@ -55,7 +64,7 @@ def build_candidate_sentences(
             ),
             ExplanationSentence(
                 text=(
-                    f"The Reader model score for {SUPPORTED_FINDING} was {items['E01_MODEL_SCORE_RAW']:.4f}; "
+                    f"The Reader model score for {finding_label} was {items['E01_MODEL_SCORE_RAW']:.4f}; "
                     "an explanation is withheld because a non-target cue flag was raised."
                 ),
                 evidence_ids=("E01_MODEL_SCORE_RAW", "E02_VERDICT"),
@@ -73,7 +82,7 @@ def build_candidate_sentences(
             sents.append(
                 ExplanationSentence(
                     text=(
-                        f"For {SUPPORTED_FINDING}, the uncalibrated model score was {items['E01_MODEL_SCORE_RAW']:.4f}, "
+                        f"For {finding_label}, the uncalibrated model score was {items['E01_MODEL_SCORE_RAW']:.4f}, "
                         f"and the target edit changed the score by {items['E04_TARGET_SCORE_DROP_PRIMARY']:.4f} compared with "
                         f"a median change of {items['E07_CONTROL_SCORE_DROP_MEDIAN']:.4f} across {items['E06_CONTROL_COUNT']} matched controls."
                     ),
@@ -84,7 +93,7 @@ def build_candidate_sentences(
             sents.append(
                 ExplanationSentence(
                     text=(
-                        f"For {SUPPORTED_FINDING}, the uncalibrated model score was {items['E01_MODEL_SCORE_RAW']:.4f}, "
+                        f"For {finding_label}, the uncalibrated model score was {items['E01_MODEL_SCORE_RAW']:.4f}, "
                         "which is below the positive-prediction threshold."
                     ),
                     evidence_ids=("E01_MODEL_SCORE_RAW", "E03_REASON_CODES"),
@@ -110,7 +119,7 @@ def build_candidate_sentences(
         ),
         ExplanationSentence(
             text=(
-                f"The Reader model score for {SUPPORTED_FINDING} was {items['E01_MODEL_SCORE_RAW']:.4f}, "
+                f"The Reader model score for {finding_label} was {items['E01_MODEL_SCORE_RAW']:.4f}, "
                 f"and editing the candidate region lowered the model score by {items['E04_TARGET_SCORE_DROP_PRIMARY']:.4f}."
             ),
             evidence_ids=("E01_MODEL_SCORE_RAW", "E04_TARGET_SCORE_DROP_PRIMARY"),
@@ -139,12 +148,13 @@ def explain_verified(
     vlm_claims: Iterable[VLMClaim] = (),
     language: str = "en",
 ) -> ExplainerOutput:
-    """Produce a rule-verified explanation; non-pneumothorax claims are marked unverified only."""
+    """Produce a rule-verified explanation; non-target claims are marked unverified only."""
+    target_key = _canon_finding_key(evidence.finding_id)
     # Never explain or pass unverified findings into the narrative; tag cleanly for display.
     other = tuple(
         f"{sanitize_for_prompt(c.finding)} ({c.status}): mentioned by the model, not verified"
         for c in vlm_claims
-        if not c.is_verifiable_finding or c.finding.strip().lower() != evidence.finding_id.strip().lower()
+        if not c.is_verifiable_finding or _canon_finding_key(c.finding) != target_key
     )
     candidates = build_candidate_sentences(evidence, language=language)
     report = verify_explanation(candidates, evidence)

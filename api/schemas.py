@@ -10,19 +10,6 @@ AllowedVerdict = Literal["MODEL-SUPPORTED", "NOT SUPPORTED", "SHORTCUT RISK", "I
 AllowedFinding = Literal[
     "pneumothorax",
     "effusion",
-    "cardiomegaly",
-    "aortic_enlargement",
-    "atelectasis",
-    "calcification",
-    "consolidation",
-    "ild",
-    "infiltration",
-    "lung_opacity",
-    "nodule_mass",
-    "other_lesion",
-    "pleural_thickening",
-    "pulmonary_fibrosis",
-    "tuberculosis",
     "pneumonia",
 ]
 
@@ -69,6 +56,7 @@ class BatchVerifyResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
+    finding_id: AllowedFinding = "pneumothorax"
     verdict: AllowedVerdict | None = None
     reason_codes: list[str] = Field(default_factory=list)
     evidence_items: dict[str, Any] = Field(default_factory=dict)

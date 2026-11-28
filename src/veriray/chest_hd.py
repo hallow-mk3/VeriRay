@@ -43,6 +43,7 @@ from veriray.reader import (
 
 CHEST_HD_RECORD = "CHEST_HD_CHECKPOINT.json"
 CHEST_HD_PREPROCESSING_ID = "chest-hd-convnext-fpn-512-v1"
+CHEST_HD_LOCATOR_ID = "chest-hd-fpn128-gradcampp16-v1"
 
 CHEST_HD_FINDINGS: tuple[str, ...] = (
     "aortic_enlargement",
@@ -59,7 +60,6 @@ CHEST_HD_FINDINGS: tuple[str, ...] = (
     "pleural_thickening",
     "pneumothorax",
     "pulmonary_fibrosis",
-    "tuberculosis",
     "pneumonia",
 )
 
@@ -78,33 +78,27 @@ CHEST_HD_DISPLAY_NAMES: dict[str, str] = {
     "pleural_thickening": "Pleural thickening",
     "pneumothorax": "Pneumothorax",
     "pulmonary_fibrosis": "Pulmonary fibrosis",
-    "tuberculosis": "Tuberculosis",
     "pneumonia": "Pneumonia",
 }
 
-_PAREN_COUPLED = frozenset({
-    "atelectasis", "consolidation", "ild", "infiltration", "lung_opacity",
-    "nodule_mass", "other_lesion", "pulmonary_fibrosis", "tuberculosis", "pneumonia",
-    "effusion", "pleural_thickening", "pneumothorax",
-})
-_CARDIAC_COUPLED = frozenset({
-    "cardiomegaly", "aortic_enlargement", "calcification", "other_lesion",
-    "effusion", "pleural_thickening", "lung_opacity", "tuberculosis",
-    "pneumothorax", "atelectasis", "infiltration", "consolidation", "pulmonary_fibrosis",
-})
-_PLEURAL_COUPLED = frozenset({
-    "pneumothorax", "effusion", "pleural_thickening", "atelectasis",
-    "lung_opacity", "other_lesion", "cardiomegaly", "consolidation", "tuberculosis",
-})
-
+# Strictly direct anatomical/radiological co-occurrences so EVERY finding retains 9-12
+# genuinely unrelated thoracic channels for the Judge's unrelated-label drift gate.
 _COUPLED_FINDINGS: dict[str, frozenset[str]] = {
-    **{k: _PAREN_COUPLED for k in _PAREN_COUPLED},
-    "cardiomegaly": _CARDIAC_COUPLED,
-    "aortic_enlargement": _CARDIAC_COUPLED,
-    "calcification": _CARDIAC_COUPLED | _PAREN_COUPLED,
-    "pneumothorax": _PLEURAL_COUPLED,
-    "effusion": _PLEURAL_COUPLED | _PAREN_COUPLED,
-    "tuberculosis": frozenset(CHEST_HD_FINDINGS),
+    "aortic_enlargement": frozenset({"cardiomegaly", "calcification"}),
+    "cardiomegaly": frozenset({"aortic_enlargement", "effusion"}),
+    "calcification": frozenset({"aortic_enlargement", "nodule_mass", "pulmonary_fibrosis"}),
+    "pneumothorax": frozenset({"atelectasis", "effusion", "pleural_thickening"}),
+    "effusion": frozenset({"pleural_thickening", "atelectasis", "lung_opacity", "consolidation"}),
+    "pleural_thickening": frozenset({"effusion", "pulmonary_fibrosis", "atelectasis"}),
+    "pneumonia": frozenset({"consolidation", "infiltration", "lung_opacity", "atelectasis"}),
+    "consolidation": frozenset({"pneumonia", "infiltration", "lung_opacity", "atelectasis"}),
+    "infiltration": frozenset({"pneumonia", "consolidation", "lung_opacity", "ild"}),
+    "lung_opacity": frozenset({"pneumonia", "consolidation", "infiltration", "atelectasis", "nodule_mass", "effusion"}),
+    "atelectasis": frozenset({"consolidation", "lung_opacity", "effusion", "pneumothorax"}),
+    "ild": frozenset({"pulmonary_fibrosis", "infiltration", "lung_opacity"}),
+    "pulmonary_fibrosis": frozenset({"ild", "pleural_thickening", "atelectasis"}),
+    "nodule_mass": frozenset({"lung_opacity", "calcification", "other_lesion"}),
+    "other_lesion": frozenset({"nodule_mass", "lung_opacity", "calcification"}),
 }
 
 
@@ -175,19 +169,21 @@ def _sha256_file(path: Path) -> str:
 
 
 def preprocess_hd(gray_0_255: np.ndarray, img_size: int = 512) -> tuple[torch.Tensor, np.ndarray]:
-    """Resize/pad 2D grayscale array in [0, 255] to (1, 3, img_size, img_size) ImageNet-normalized tensor."""
+    """Resize 2D grayscale array in [0, 255] to native (img_size, img_size) display + normalized tensor."""
     arr = np.asarray(gray_0_255, dtype=np.float32)
     if arr.ndim != 2 or arr.size == 0 or not np.all(np.isfinite(arr)):
         raise InferenceError("expected non-empty finite 2D grayscale image")
     u8 = np.clip(np.rint(arr), 0, 255).astype(np.uint8)
-    interp = cv2.INTER_AREA if (u8.shape[0] >= img_size and u8.shape[1] >= img_size) else cv2.INTER_LINEAR
-    resized = cv2.resize(u8, (img_size, img_size), interpolation=interp).astype(np.float32)
+    if u8.shape == (img_size, img_size):
+        resized = u8.astype(np.float32)
+    else:
+        interp = cv2.INTER_AREA if (u8.shape[0] >= img_size and u8.shape[1] >= img_size) else cv2.INTER_LINEAR
+        resized = cv2.resize(u8, (img_size, img_size), interpolation=interp).astype(np.float32)
     x01 = resized / 255.0
     t3 = torch.from_numpy(x01)[None, None].repeat(1, 3, 1, 1)
     mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(1, 3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(1, 3, 1, 1)
-    display_224 = cv2.resize(resized, (224, 224), interpolation=cv2.INTER_AREA).astype(np.float32)
-    return (t3 - mean) / std, display_224
+    return (t3 - mean) / std, resized
 
 
 @dataclass(frozen=True)
@@ -222,6 +218,7 @@ class ChestHDReaderAdapter:
         self.finding_index = record.finding_index
         self.checkpoint_id = record.checkpoint_id
         self.preprocessing_id = CHEST_HD_PREPROCESSING_ID
+        self.locator_id = CHEST_HD_LOCATOR_ID
         self.img_size = img_size
         self.calibrator = platt
         self.all_calibrators = dict(all_calibrators or {})
@@ -309,8 +306,8 @@ class ChestHDReaderAdapter:
         return cls(net, rec, dev, img_size=img_size, platt=platt, all_calibrators=all_cals)
 
     def score(self, gray_0_255: np.ndarray) -> tuple[ReaderContract, torch.Tensor, np.ndarray]:
-        """Score a grayscale X-ray (either full-res from Gate or 224x224 from Judge counterfactuals)."""
-        x, display_224 = preprocess_hd(gray_0_255, img_size=self.img_size)
+        """Score a grayscale X-ray natively at (img_size, img_size) with idempotent display view."""
+        x, display_hd = preprocess_hd(gray_0_255, img_size=self.img_size)
         try:
             with torch.no_grad():
                 xt = x.to(self.device)
@@ -321,14 +318,14 @@ class ChestHDReaderAdapter:
                 seg_peaks = torch.topk(seg_p.flatten(1), top_k, dim=1).values.mean(dim=1)
                 fused_all = 0.80 * probs + 0.20 * seg_peaks
                 raw = float(fused_all[self.finding_index].item())
-                coupled = _COUPLED_FINDINGS.get(self.record.finding_label, frozenset({self.record.finding_label}))
+                coupled = _COUPLED_FINDINGS.get(self.record.finding_label, frozenset())
                 unrelated: dict[str, float] = {}
                 for i, lbl in enumerate(self.record.label_list):
                     if i == self.finding_index or lbl in coupled:
                         continue
+                    # Measure spatial FPN peak on uncoupled channels WITHOUT applying the
+                    # fused-score Platt calibrator (which had negative intercepts that crushed drift).
                     p_i = float(seg_peaks[i].item())
-                    if lbl in self.all_calibrators:
-                        p_i = self.all_calibrators[lbl].calibrate(p_i)
                     unrelated[CHEST_HD_DISPLAY_NAMES.get(lbl, lbl)] = p_i
             cal_score = self.calibrator.calibrate(raw) if self.calibrator is not None else None
             thresh_id = f"platt-val-{self.record.finding_label}-v1" if self.calibrator is not None else "none-uncalibrated-v0"
@@ -342,11 +339,18 @@ class ChestHDReaderAdapter:
             )
         except Exception as exc:  # noqa: BLE001
             raise InferenceError(f"{type(exc).__name__}: {exc}") from exc
-        return rc, x, display_224
+        return rc, x, display_hd
 
-    def locate_224(self, x: torch.Tensor, cfg: LocatorConfig | None = None) -> LocatorContract:
-        """Produce a crisp 224x224 LocatorContract fusing supervised FPN mask + 16x16 Grad-CAM++."""
+    def locate(
+        self,
+        x: torch.Tensor,
+        cfg: LocatorConfig | None = None,
+        *,
+        out_size: int | None = None,
+    ) -> LocatorContract:
+        """Produce a native-resolution LocatorContract fusing supervised FPN mask + 16x16 Grad-CAM++."""
         cfg = cfg or LocatorConfig()
+        target_sz = int(out_size or x.shape[-1])
         xt = x.to(self.device)
         with torch.no_grad():
             f1 = self.model.stem_s1(xt)
@@ -355,8 +359,8 @@ class ChestHDReaderAdapter:
             f4_base = self.model.s4(f3)
             _, seg_logits, _ = self.model.forward_features(xt)
             seg_prob_128 = torch.sigmoid(seg_logits[:, self.finding_index : self.finding_index + 1])
-            seg_224 = F.interpolate(seg_prob_128, size=(224, 224), mode="bilinear", align_corners=False)[0, 0]
-            seg_np = seg_224.detach().cpu().numpy().astype(np.float32)
+            seg_up = F.interpolate(seg_prob_128, size=(target_sz, target_sz), mode="bilinear", align_corners=False)[0, 0]
+            seg_np = seg_up.detach().cpu().numpy().astype(np.float32)
 
         # Grad-CAM++ on 16x16 s4 feature map
         f4 = f4_base.detach().clone().requires_grad_(True)
@@ -372,8 +376,8 @@ class ChestHDReaderAdapter:
         alpha = g2 / denom
         weights = (alpha * F.relu(g)).sum(dim=(2, 3), keepdim=True)
         cam_16 = F.relu((weights * f4).sum(dim=1, keepdim=True))
-        cam_224 = F.interpolate(cam_16, size=(224, 224), mode="bilinear", align_corners=False)[0, 0]
-        cam_np = cam_224.detach().cpu().numpy().astype(np.float32)
+        cam_up = F.interpolate(cam_16, size=(target_sz, target_sz), mode="bilinear", align_corners=False)[0, 0]
+        cam_np = cam_up.detach().cpu().numpy().astype(np.float32)
         c_lo, c_hi = float(cam_np.min()), float(cam_np.max())
         cam_norm = np.zeros_like(cam_np) if (c_hi - c_lo < 1e-8) else (cam_np - c_lo) / (c_hi - c_lo)
 
@@ -385,11 +389,15 @@ class ChestHDReaderAdapter:
         else:
             blended = cam_norm
         b_lo, b_hi = float(blended.min()), float(blended.max())
-        heatmap = np.zeros((224, 224), dtype=np.float32) if (b_hi - b_lo < 1e-8) else np.clip((blended - b_lo) / (b_hi - b_lo), 0.0, 1.0).astype(np.float32)
+        heatmap = (
+            np.zeros((target_sz, target_sz), dtype=np.float32)
+            if (b_hi - b_lo < 1e-8)
+            else np.clip((blended - b_lo) / (b_hi - b_lo), 0.0, 1.0).astype(np.float32)
+        )
 
         peak = float(max(s_max, c_hi - c_lo))
         if peak < cfg.epsilon:
-            heatmap = np.zeros((224, 224), dtype=np.float32)
+            heatmap = np.zeros((target_sz, target_sz), dtype=np.float32)
 
         mask = heatmap_to_mask(heatmap, cfg)
         return LocatorContract(
@@ -397,3 +405,7 @@ class ChestHDReaderAdapter:
             target_mask=mask,
             localization_flags=localization_flags(heatmap, mask, cfg),
         )
+
+    def locate_224(self, x: torch.Tensor, cfg: LocatorConfig | None = None) -> LocatorContract:
+        """Backwards-compatible 224x224 LocatorContract helper."""
+        return self.locate(x, cfg, out_size=224)

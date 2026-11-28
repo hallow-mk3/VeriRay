@@ -16,14 +16,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from eval.metrics import compute_reader_metrics  # noqa: E402
 from eval.run_eval import _index_images  # noqa: E402
-from scripts.val_diagnose_and_tune import _load_nih_trained_reader  # noqa: E402
 from veriray.calibration import fit_platt_calibrator  # noqa: E402
+from veriray.reader import Reader  # noqa: E402
 from veriray.splits import load_manifest, select_split  # noqa: E402
 
 
 def main() -> int:
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    reader = _load_nih_trained_reader(device)
+    reader = Reader.load_for_finding(ROOT / "models", "pneumothorax", device=device)
     rows = load_manifest(ROOT / "data" / "manifests" / "nih_manifest.csv")
     val_rows = select_split(rows, "val")
     index = _index_images(Path(r"C:\Users\swast\nih"))

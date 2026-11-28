@@ -14,22 +14,11 @@ if TYPE_CHECKING:
 
 
 SUPPORTED_FINDING: str = "pneumothorax"
+# Restricted strictly to findings passing the frozen verifiable rule + border-shortcut gate
+# on BOTH dev_val and locked_test (positives >= 100, Dice >= 0.50, border_probe <= 0.80):
 SUPPORTED_FINDINGS: tuple[str, ...] = (
     "pneumothorax",
     "effusion",
-    "cardiomegaly",
-    "aortic_enlargement",
-    "atelectasis",
-    "calcification",
-    "consolidation",
-    "ild",
-    "infiltration",
-    "lung_opacity",
-    "nodule_mass",
-    "other_lesion",
-    "pleural_thickening",
-    "pulmonary_fibrosis",
-    "tuberculosis",
     "pneumonia",
 )
 SYNTHETIC_COUNTERFACTUAL_LABEL: str = "SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN"

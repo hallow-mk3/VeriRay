@@ -156,7 +156,9 @@ def _run_frontend(
 
     try:
         t = time.perf_counter()
-        if hasattr(reader, "locate_224"):
+        if hasattr(reader, "locate"):
+            loc = reader.locate(x, locator_cfg)  # type: ignore[attr-defined]
+        elif hasattr(reader, "locate_224"):
             loc = reader.locate_224(x, locator_cfg)  # type: ignore[attr-defined]
         else:
             loc = locate(reader, x, locator_cfg)
@@ -214,15 +216,18 @@ def run_step2(
 
     manifest = None
     manifest_path = None
+    prep_id = getattr(reader, "preprocessing_id", PREPROCESSING_ID)
+    loc_id = getattr(reader, "locator_id", LOCATOR_ID)
     try:
         record = reader.record
         manifest = create_run_manifest(
             run_config={
                 "step": 2,
+                "finding_id": finding_id,
                 "gate": asdict(gate_cfg),
-                "locator_id": LOCATOR_ID,
+                "locator_id": loc_id,
                 "locator": asdict(locator_cfg),
-                "preprocessing_id": PREPROCESSING_ID,
+                "preprocessing_id": prep_id,
                 "checkpoint_id": reader.checkpoint_id,
                 "input_image_sha256_of_gate_output": _sha(inp.image_tensor),
                 "gate_reason_codes": list(gate.reason_codes),
@@ -231,7 +236,7 @@ def run_step2(
             },
             model_id=reader.checkpoint_id,
             checkpoint_hashes={record.weights_id: record.sha256},
-            preprocessing_id=PREPROCESSING_ID,
+            preprocessing_id=prep_id,
             dataset_split_id="none-single-image-step2",
             random_seeds={"torch": SEED, "numpy": SEED},
             stage_latencies_ms=lat,
@@ -305,12 +310,14 @@ def run_verification(
                 unet_eraser = UNetEraser.load_optional(models_dir, device=str(reader.device))
             except Exception:  # noqa: BLE001 - optional; never block the pipeline
                 unet_eraser = None
-            # Score the 224x224 model-space view as baseline so counterfactual drops compare identical frames.
-            baseline_224, _, _ = reader.score(display)
+            # Score the native model-space view (512x512 for ChestHD, 224x224 for legacy DenseNet)
+            # and synchronize reader_out with this baseline so top-level score_raw and E01 match identically.
+            baseline_rc, _, _ = reader.score(display)
+            reader_out = baseline_rc
             judge_outcome = run_judge(
                 reader,
                 display,
-                baseline_224,
+                baseline_rc,
                 loc,
                 cfg=judge_cfg,
                 locator_cfg=locator_cfg,
@@ -339,16 +346,18 @@ def run_verification(
 
     manifest: RunManifest | None = None
     manifest_path: Path | None = None
+    prep_id = getattr(reader, "preprocessing_id", PREPROCESSING_ID)
+    loc_id = getattr(reader, "locator_id", LOCATOR_ID)
     try:
         manifest = create_run_manifest(
             run_config={
                 "step": 3,
                 "finding_id": finding_id,
                 "gate": asdict(gate_cfg),
-                "locator_id": LOCATOR_ID,
+                "locator_id": loc_id,
                 "locator": asdict(locator_cfg),
                 "judge": asdict(judge_cfg),
-                "preprocessing_id": PREPROCESSING_ID,
+                "preprocessing_id": prep_id,
                 "checkpoint_id": reader.checkpoint_id,
                 "input_image_sha256": _sha(inp.image_tensor) if inp is not None else None,
                 "verdict": verdict.value,
@@ -356,7 +365,7 @@ def run_verification(
             },
             model_id=reader.checkpoint_id,
             checkpoint_hashes={record.weights_id: record.sha256},
-            preprocessing_id=PREPROCESSING_ID,
+            preprocessing_id=prep_id,
             dataset_split_id=dataset_split_id,
             random_seeds={"torch": SEED, "numpy": SEED, "controls": judge_cfg.seed},
             stage_latencies_ms=lat,

@@ -47,11 +47,19 @@ def test_chest_hd_fail_closed_and_16_findings(tmp_path: Path):
     d = _write_fake_chest_hd(tmp_path / "hd")
     assert ChestHDReaderAdapter.is_available(d)
 
-    for fid in ("pneumothorax", "effusion", "cardiomegaly", "tuberculosis", "pneumonia", "nodule_mass"):
+    for fid in ("pneumothorax", "effusion", "cardiomegaly", "pneumonia", "nodule_mass"):
         adapter = ChestHDReaderAdapter.load_for_finding(d, fid, device="cpu")
         rc, x, disp = adapter.score(synthetic_xray(256, 256).astype(np.float32))
         assert 0.0 <= rc.score_raw <= 1.0
-        assert disp.shape == (224, 224)
+        assert disp.shape == (adapter.img_size, adapter.img_size)
+        # Re-scoring native display view must be bit-identical (zero split-brain score drop)
+        rc2, _, _ = adapter.score(disp)
+        assert rc2.score_raw == pytest.approx(rc.score_raw, abs=1e-7)
+        # Every finding must retain >= 8 unrelated channels for the Judge drift gate
+        assert len(rc.unrelated_scores) >= 8
+        loc_native = adapter.locate(x)
+        assert loc_native.heatmap.shape == (adapter.img_size, adapter.img_size)
+        assert loc_native.target_mask.shape == (adapter.img_size, adapter.img_size)
         loc = adapter.locate_224(x)
         assert loc.heatmap.shape == (224, 224) and loc.target_mask.shape == (224, 224)
 

@@ -1,22 +1,30 @@
-"""Tests for multi-finding Chest X-ray support (pneumothorax, effusion, cardiomegaly)."""
+"""Tests for verified multi-finding Chest X-ray support (pneumothorax, effusion, pneumonia)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from tests.conftest import synthetic_xray
-from veriray.contracts import SUPPORTED_FINDINGS, Verdict
+from veriray.contracts import SUPPORTED_FINDINGS, InputContract, Verdict
 from veriray.pipeline import run_verification
 from veriray.reader import CheckpointRecordError, Reader
 
 
-def test_supported_findings_tuple():
-    assert {"pneumothorax", "effusion", "cardiomegaly", "pneumonia", "tuberculosis", "nodule_mass"}.issubset(
-        set(SUPPORTED_FINDINGS)
-    )
-    assert len(SUPPORTED_FINDINGS) == 16
+def test_supported_findings_restricted_to_verified_rule_passers():
+    assert SUPPORTED_FINDINGS == ("pneumothorax", "effusion", "pneumonia")
+    for excluded in ("tuberculosis", "cardiomegaly", "aortic_enlargement", "infiltration", "lung_opacity", "nodule_mass"):
+        assert excluded not in SUPPORTED_FINDINGS
+        with pytest.raises(ValueError, match="finding_id"):
+            InputContract(
+                image_tensor=np.zeros((224, 224), dtype=np.float32),
+                image_metadata_allowlist={},
+                finding_id=excluded,
+                model_id="m",
+                preprocessing_id="p",
+            )
 
 
 def test_reader_load_for_finding_retargets_index(fake_models_dir: Path):
@@ -25,16 +33,16 @@ def test_reader_load_for_finding_retargets_index(fake_models_dir: Path):
     assert r_eff.finding_index == r_eff.record.label_list.index("Effusion")
     assert r_eff.calibrator is None  # Pneumothorax calibrator must not transfer
 
-    r_card = Reader.load_for_finding(fake_models_dir, "cardiomegaly", device="cpu")
-    assert r_card.record.finding_label == "Cardiomegaly"
-    assert r_card.finding_index == r_card.record.label_list.index("Cardiomegaly")
-    assert r_card.calibrator is None
+    r_pna = Reader.load_for_finding(fake_models_dir, "pneumonia", device="cpu")
+    assert r_pna.record.finding_label == "Pneumonia"
+    assert r_pna.finding_index == r_pna.record.label_list.index("Pneumonia")
+    assert r_pna.calibrator is None
 
     with pytest.raises(CheckpointRecordError):
         Reader.load_for_finding(fake_models_dir, "unknown_finding", device="cpu")
 
 
-@pytest.mark.parametrize("finding_id", ["pneumothorax", "effusion", "cardiomegaly"])
+@pytest.mark.parametrize("finding_id", ["pneumothorax", "effusion", "pneumonia"])
 def test_run_verification_multifinding(fake_models_dir: Path, tmp_path: Path, finding_id: str):
     r = Reader.load_for_finding(fake_models_dir, finding_id, device="cpu")
     res = run_verification(

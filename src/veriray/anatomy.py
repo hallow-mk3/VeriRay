@@ -115,18 +115,20 @@ class LungSegmenter:
         finding_id: str = "pneumothorax",
         threshold: float = 0.5,
     ) -> np.ndarray:
-        """Return (224, 224) bool ROI mask appropriate for the target finding.
+        """Return (H, W) bool ROI mask matching input image dimensions for the target finding.
 
         Parenchymal/pleural findings use Left Lung | Right Lung.
         Cardiomegaly includes Heart | Mediastinum alongside the lungs.
         """
         img = np.asarray(image_224_0_255, dtype=np.float32)
-        if img.shape != (224, 224):
-            raise AnatomyError("LUNG_SEG_BAD_SHAPE", f"expected (224, 224), got {img.shape}")
+        if img.ndim != 2 or img.shape[0] < 64 or img.shape[1] < 64:
+            raise AnatomyError("LUNG_SEG_BAD_SHAPE", f"expected 2D image >= (64, 64), got {img.shape}")
+        out_h, out_w = int(img.shape[0]), int(img.shape[1])
         # Match ChestX-Det PSPNet normalization: [0, 1] -> ImageNet mean/std, 512x512 RGB
         x01 = np.clip(img / 255.0, 0.0, 1.0)
         t = torch.from_numpy(x01)[None, None].repeat(1, 3, 1, 1).to(self.device)
-        t = F.interpolate(t, size=(512, 512), mode="bilinear", align_corners=False)
+        if (out_h, out_w) != (512, 512):
+            t = F.interpolate(t, size=(512, 512), mode="bilinear", align_corners=False)
         mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, 3, 1, 1)
         t = (t - mean) / std
@@ -137,5 +139,5 @@ class LungSegmenter:
         with torch.inference_mode():
             logits = self.model(t)
             roi_probs = torch.sigmoid(logits[:, indices]).max(dim=1, keepdim=True).values
-            roi_224 = F.interpolate(roi_probs, size=(224, 224), mode="bilinear", align_corners=False)[0, 0]
-        return (roi_224.detach().cpu().numpy() >= threshold).astype(bool)
+            roi_out = F.interpolate(roi_probs, size=(out_h, out_w), mode="bilinear", align_corners=False)[0, 0]
+        return (roi_out.detach().cpu().numpy() >= threshold).astype(bool)

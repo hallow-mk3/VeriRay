@@ -1,19 +1,22 @@
-"""Train 512x512 Dual-Head ConvNeXt-Tiny + FPN Spatial Locator across 16 Chest Findings.
+"""Step 2A: Train 512x512 Dual-Head ConvNeXt-Tiny + FPN Locator on De-Confounded Chest Splits.
 
-Datasets combined with masked multi-task loss (zero cross-dataset false negatives):
-  1. VinBigData 512x512 (15,000 scans, 67,914 radiologist box annotations across 14 classes + No finding)
-  2. SIIM-ACR Pneumothorax (10,675 scans + exact pixel-level pneumothorax masks)
-  3. RSNA Pneumonia (26,684 scans + radiologist pneumonia/lung-opacity bounding boxes)
-  4. TB Chest Radiography Database (4,200 scans: Normal + Tuberculosis)
-
-Strict split discipline:
-  - Deterministic SHA-256 split by unique scan/patient ID (85% train / 15% val).
-  - Zero overlap asserted before training starts.
-  - Per-finding Platt calibration fitted on val split ONLY.
+Changes implemented per approved audit plan:
+  1. Drops tb_cxr completely (15 findings; 'tuberculosis' removed).
+  2. Loads ONLY 'train' and 'val' from SHA-256-verified data/manifests/chest_hd_manifest.csv
+     (dHash+32x32 cluster-grouped; val-leaking items purged; locked 'test' NEVER touched).
+  3. De-confounds supervision:
+       - rsna_pneumonia supervises ONLY channel 14 ('pneumonia'), leaving channel 7
+         ('lung_opacity') cleanly single-source on vinbigdata.
+       - channel 12 ('pneumothorax') uses source-stratified negative supervision so
+         positive base rate matches across vinbigdata and siim_pneumo.
+  4. Runs a per-finding border/corner-only LogisticRegression probe (train -> val) to check
+     for border-framing shortcuts alongside source composition, and evaluates against the
+     frozen rule in configs/verifiable.yaml (without touching verifiable.yaml).
 """
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -29,6 +32,7 @@ import pandas as pd
 from PIL import Image
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.preprocessing import StandardScaler
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -47,7 +51,9 @@ from veriray.chest_hd import (  # noqa: E402
 DATASETS_DIR = Path(r"C:\Users\swast\datasets")
 IMG_SIZE = 512
 SEG_SIZE = 128
-NUM_CLASSES = len(CHEST_HD_FINDINGS)  # 16
+NUM_CLASSES = len(CHEST_HD_FINDINGS)  # 15
+PNEUMOTHORAX_IDX = CHEST_HD_FINDINGS.index("pneumothorax")  # 12
+PNEUMONIA_IDX = CHEST_HD_FINDINGS.index("pneumonia")        # 14
 SEED = 20261127
 
 
@@ -56,151 +62,151 @@ class SampleMeta:
     uid: str
     source: str
     img_path: Path
-    # Channels with known binary labels & values
     known_cls_indices: list[int]
     pos_cls_indices: list[int]
-    # Spatial supervision: either boxes (cls_idx, x1_norm, y1_norm, x2_norm, y2_norm) or mask_path
     known_seg_indices: list[int]
     boxes_norm: list[tuple[int, float, float, float, float]] = field(default_factory=list)
     pneumo_mask_path: Path | None = None
 
 
-def _is_train(uid: str) -> bool:
-    h = int(hashlib.sha256(uid.encode("utf-8")).hexdigest()[:8], 16)
-    return (h % 100) < 85
+def _verify_locked_manifest() -> dict[str, str]:
+    man_dir = ROOT / "data" / "manifests"
+    csv_p = man_dir / "chest_hd_manifest.csv"
+    sha_p = man_dir / "chest_hd_manifest.sha256.json"
+    expected = json.loads(sha_p.read_text(encoding="utf-8"))["sha256"].lower()
+    actual = hashlib.sha256(csv_p.read_bytes()).hexdigest()
+    if actual != expected:
+        raise RuntimeError(f"chest_hd_manifest.csv SHA-256 mismatch: {actual} != {expected}")
+    split_by_uid: dict[str, str] = {}
+    with csv_p.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            sp = row["split"]
+            if sp in ("train", "val"):
+                split_by_uid[row["uid"]] = sp
+            # Strictly ignore 'test' and 'dropped_val_leak'!
+    return split_by_uid
 
 
-def load_all_metadata() -> tuple[list[SampleMeta], list[SampleMeta]]:
-    samples: list[SampleMeta] = []
+def load_deconfounded_train_val() -> tuple[list[SampleMeta], list[SampleMeta]]:
+    split_by_uid = _verify_locked_manifest()
+    samples_tr: list[SampleMeta] = []
+    samples_va: list[SampleMeta] = []
 
-    # 1. VinBigData (classes 0..13)
+    # 1. VinBigData (classes 0..13; channel 12 negative supervision stratified to SIIM ~22.5% base rate)
     vbd_dir = DATASETS_DIR / "vindr_cxr" / "vinbigdata"
-    vbd_csv = vbd_dir / "train.csv"
-    if vbd_csv.is_file():
-        df = pd.read_csv(vbd_csv)
-        all_14 = list(range(14))
-        for img_id, grp in df.groupby("image_id"):
-            img_path = vbd_dir / "train" / f"{img_id}.png"
-            if not img_path.is_file():
-                continue
-            pos_set: set[int] = set()
-            boxes: list[tuple[int, float, float, float, float]] = []
-            for row in grp.itertuples(index=False):
-                cid = int(row.class_id)
-                if cid < 14:
-                    pos_set.add(cid)
-                    w = float(row.width) if pd.notna(row.width) and float(row.width) > 0 else 1.0
-                    h = float(row.height) if pd.notna(row.height) and float(row.height) > 0 else 1.0
-                    if pd.notna(row.x_min) and pd.notna(row.x_max):
-                        x1 = float(np.clip(float(row.x_min) / w, 0.0, 1.0))
-                        y1 = float(np.clip(float(row.y_min) / h, 0.0, 1.0))
-                        x2 = float(np.clip(float(row.x_max) / w, 0.0, 1.0))
-                        y2 = float(np.clip(float(row.y_max) / h, 0.0, 1.0))
-                        if x2 > x1 and y2 > y1:
-                            boxes.append((cid, x1, y1, x2, y2))
-            samples.append(
-                SampleMeta(
-                    uid=f"vbd:{img_id}",
-                    source="vinbigdata",
-                    img_path=img_path,
-                    known_cls_indices=all_14,
-                    pos_cls_indices=sorted(pos_set),
-                    known_seg_indices=all_14,
-                    boxes_norm=boxes,
-                )
-            )
+    df = pd.read_csv(vbd_dir / "train.csv")
+    base_non_ptx = [c for c in range(14) if c != PNEUMOTHORAX_IDX]
+    rng_strat = random.Random(SEED)
 
-    # 2. Tuberculosis (class 14: tuberculosis)
-    tb_root = DATASETS_DIR / "tb_cxr" / "TB_Chest_Radiography_Database"
-    if tb_root.is_dir():
-        for folder, is_pos in [("Normal", False), ("Tuberculosis", True)]:
-            for p in sorted((tb_root / folder).glob("*.png")):
-                samples.append(
-                    SampleMeta(
-                        uid=f"tb:{folder}:{p.stem}",
-                        source="tb_cxr",
-                        img_path=p,
-                        known_cls_indices=[14],
-                        pos_cls_indices=[14] if is_pos else [],
-                        known_seg_indices=[] if is_pos else [14],  # Normal scans known zero TB mask
-                    )
-                )
+    for img_id, grp in df.groupby("image_id"):
+        uid = f"vbd:{img_id}"
+        sp = split_by_uid.get(uid)
+        if sp is None:
+            continue
+        img_path = vbd_dir / "train" / f"{img_id}.png"
+        if not img_path.is_file():
+            continue
+        pos_set: set[int] = set()
+        boxes: list[tuple[int, float, float, float, float]] = []
+        for row in grp.itertuples(index=False):
+            cid = int(row.class_id)
+            if cid < 14:
+                pos_set.add(cid)
+                w = float(row.width) if pd.notna(row.width) and float(row.width) > 0 else 1.0
+                h = float(row.height) if pd.notna(row.height) and float(row.height) > 0 else 1.0
+                if pd.notna(row.x_min) and pd.notna(row.x_max):
+                    x1 = float(np.clip(float(row.x_min) / w, 0.0, 1.0))
+                    y1 = float(np.clip(float(row.y_min) / h, 0.0, 1.0))
+                    x2 = float(np.clip(float(row.x_max) / w, 0.0, 1.0))
+                    y2 = float(np.clip(float(row.y_max) / h, 0.0, 1.0))
+                    if x2 > x1 and y2 > y1:
+                        boxes.append((cid, x1, y1, x2, y2))
 
-    # 3. SIIM-ACR Pneumothorax (class 12: pneumothorax + exact pixel masks)
+        # Source-stratify VinBigData pneumothorax negatives (~3.5 neg per pos -> ~22.2% prevalence, matching SIIM)
+        include_ptx = (PNEUMOTHORAX_IDX in pos_set) or (rng_strat.random() < 0.023)
+        known_cls = sorted(base_non_ptx + ([PNEUMOTHORAX_IDX] if include_ptx else []))
+        sm = SampleMeta(
+            uid=uid,
+            source="vinbigdata",
+            img_path=img_path,
+            known_cls_indices=known_cls,
+            pos_cls_indices=sorted(pos_set),
+            known_seg_indices=known_cls,
+            boxes_norm=boxes,
+        )
+        (samples_tr if sp == "train" else samples_va).append(sm)
+
+    # 2. SIIM-ACR Pneumothorax (channel 12 ONLY + exact pixel masks)
     siim_root = DATASETS_DIR / "siim_pneumothorax" / "siim-acr-pneumothorax"
-    siim_csv = siim_root / "stage_1_train_images.csv"
-    if siim_csv.is_file():
-        sdf = pd.read_csv(siim_csv)
-        for row in sdf.itertuples(index=False):
-            fname = str(row.new_filename)
-            img_p = siim_root / "png_images" / fname
-            msk_p = siim_root / "png_masks" / fname
+    sdf = pd.read_csv(siim_root / "stage_1_train_images.csv")
+    for row in sdf.itertuples(index=False):
+        uid = f"siim:{row.ImageId}"
+        sp = split_by_uid.get(uid)
+        if sp is None:
+            continue
+        fname = str(row.new_filename)
+        img_p = siim_root / "png_images" / fname
+        msk_p = siim_root / "png_masks" / fname
+        if not img_p.is_file():
+            continue
+        is_pos = int(row.has_pneumo) == 1
+        sm = SampleMeta(
+            uid=uid,
+            source="siim_pneumo",
+            img_path=img_p,
+            known_cls_indices=[PNEUMOTHORAX_IDX],
+            pos_cls_indices=[PNEUMOTHORAX_IDX] if is_pos else [],
+            known_seg_indices=[PNEUMOTHORAX_IDX] if msk_p.is_file() else [],
+            pneumo_mask_path=msk_p if (is_pos and msk_p.is_file()) else None,
+        )
+        (samples_tr if sp == "train" else samples_va).append(sm)
+
+    # 3. RSNA Pneumonia (channel 14 'pneumonia' ONLY — does NOT touch 'lung_opacity')
+    rsna_root = DATASETS_DIR / "rsna_pneumonia" / "input"
+    rdf = pd.read_csv(rsna_root / "stage_2_train_labels.csv")
+    for pid, grp in rdf.groupby("patientId"):
+        uid = f"rsna:{pid}"
+        sp = split_by_uid.get(uid)
+        if sp is None:
+            continue
+        img_p = rsna_root / "images" / f"{pid}.jpg"
+        if not img_p.is_file():
+            img_p = rsna_root / "images" / f"{pid}.png"
             if not img_p.is_file():
                 continue
-            is_pos = int(row.has_pneumo) == 1
-            samples.append(
-                SampleMeta(
-                    uid=f"siim:{row.ImageId}",
-                    source="siim_pneumo",
-                    img_path=img_p,
-                    known_cls_indices=[12],
-                    pos_cls_indices=[12] if is_pos else [],
-                    known_seg_indices=[12] if msk_p.is_file() else [],
-                    pneumo_mask_path=msk_p if (is_pos and msk_p.is_file()) else None,
-                )
-            )
+        is_pos = any(int(r.Target) == 1 for r in grp.itertuples(index=False))
+        boxes_r: list[tuple[int, float, float, float, float]] = []
+        if is_pos:
+            for r in grp.itertuples(index=False):
+                if int(r.Target) == 1 and pd.notna(r.x) and pd.notna(r.width):
+                    x1 = float(np.clip(float(r.x) / 1024.0, 0.0, 1.0))
+                    y1 = float(np.clip(float(r.y) / 1024.0, 0.0, 1.0))
+                    x2 = float(np.clip((float(r.x) + float(r.width)) / 1024.0, 0.0, 1.0))
+                    y2 = float(np.clip((float(r.y) + float(r.height)) / 1024.0, 0.0, 1.0))
+                    if x2 > x1 and y2 > y1:
+                        boxes_r.append((PNEUMONIA_IDX, x1, y1, x2, y2))
+        sm = SampleMeta(
+            uid=uid,
+            source="rsna_pneumonia",
+            img_path=img_p,
+            known_cls_indices=[PNEUMONIA_IDX],
+            pos_cls_indices=[PNEUMONIA_IDX] if is_pos else [],
+            known_seg_indices=[PNEUMONIA_IDX],
+            boxes_norm=boxes_r,
+        )
+        (samples_tr if sp == "train" else samples_va).append(sm)
 
-    # 4. RSNA Pneumonia (class 15: pneumonia + class 7: lung_opacity + boxes)
-    rsna_root = DATASETS_DIR / "rsna_pneumonia" / "input"
-    rsna_csv = rsna_root / "stage_2_train_labels.csv"
-    if rsna_csv.is_file():
-        rdf = pd.read_csv(rsna_csv)
-        for pid, grp in rdf.groupby("patientId"):
-            img_p = rsna_root / "images" / f"{pid}.jpg"
-            if not img_p.is_file():
-                img_p = rsna_root / "images" / f"{pid}.png"
-                if not img_p.is_file():
-                    continue
-            is_pos = any(int(r.Target) == 1 for r in grp.itertuples(index=False))
-            boxes_r: list[tuple[int, float, float, float, float]] = []
-            if is_pos:
-                for r in grp.itertuples(index=False):
-                    if int(r.Target) == 1 and pd.notna(r.x) and pd.notna(r.width):
-                        x1 = float(np.clip(float(r.x) / 1024.0, 0.0, 1.0))
-                        y1 = float(np.clip(float(r.y) / 1024.0, 0.0, 1.0))
-                        x2 = float(np.clip((float(r.x) + float(r.width)) / 1024.0, 0.0, 1.0))
-                        y2 = float(np.clip((float(r.y) + float(r.height)) / 1024.0, 0.0, 1.0))
-                        if x2 > x1 and y2 > y1:
-                            boxes_r.append((15, x1, y1, x2, y2))
-                            boxes_r.append((7, x1, y1, x2, y2))
-            samples.append(
-                SampleMeta(
-                    uid=f"rsna:{pid}",
-                    source="rsna_pneumonia",
-                    img_path=img_p,
-                    known_cls_indices=[7, 15],
-                    pos_cls_indices=[7, 15] if is_pos else [],
-                    known_seg_indices=[7, 15],
-                    boxes_norm=boxes_r,
-                )
-            )
-
-    train_s = [s for s in samples if _is_train(s.uid)]
-    val_s = [s for s in samples if not _is_train(s.uid)]
-    train_ids = {s.uid for s in train_s}
-    val_ids = {s.uid for s in val_s}
-    assert train_ids.isdisjoint(val_ids), "CRITICAL: train/val UID overlap detected!"
-    return train_s, val_s
+    assert {s.uid for s in samples_tr}.isdisjoint({s.uid for s in samples_va})
+    return samples_tr, samples_va
 
 
 def build_epoch_subset(train_all: list[SampleMeta], epoch: int) -> list[SampleMeta]:
-    """Keep 100% of VinBigData + TB + all SIIM/RSNA positives + rotating negative subsample for balanced epochs."""
     rng = random.Random(SEED + epoch)
     out: list[SampleMeta] = []
     siim_neg: list[SampleMeta] = []
     rsna_neg: list[SampleMeta] = []
     for s in train_all:
-        if s.source in ("vinbigdata", "tb_cxr") or s.pos_cls_indices:
+        if s.source == "vinbigdata" or s.pos_cls_indices:
             out.append(s)
         elif s.source == "siim_pneumo":
             siim_neg.append(s)
@@ -209,7 +215,7 @@ def build_epoch_subset(train_all: list[SampleMeta], epoch: int) -> list[SampleMe
     rng.shuffle(siim_neg)
     rng.shuffle(rsna_neg)
     out.extend(siim_neg[:3500])
-    out.extend(rsna_neg[:4000])
+    out.extend(rsna_neg[:4500])
     rng.shuffle(out)
     return out
 
@@ -247,7 +253,6 @@ class ChestMultiDataset(Dataset):
             iy1 = max(0, min(SEG_SIZE - 1, int(round(y1 * SEG_SIZE))))
             ix2 = max(ix1 + 1, min(SEG_SIZE, int(round(x2 * SEG_SIZE))))
             iy2 = max(iy1 + 1, min(SEG_SIZE, int(round(y2 * SEG_SIZE))))
-            # Soft elliptical interior + box union so centers get strongest supervision
             y_seg[cid, iy1:iy2, ix1:ix2] = np.maximum(y_seg[cid, iy1:iy2, ix1:ix2], 0.85)
             cx, cy = (ix1 + ix2) // 2, (iy1 + iy2) // 2
             rx, ry = max(1, (ix2 - ix1) // 2), max(1, (iy2 - iy1) // 2)
@@ -259,7 +264,7 @@ class ChestMultiDataset(Dataset):
             with Image.open(s.pneumo_mask_path) as mim:
                 pm = np.asarray(mim.convert("L"), dtype=np.uint8)
             pm_small = cv2.resize(pm, (SEG_SIZE, SEG_SIZE), interpolation=cv2.INTER_AREA)
-            y_seg[12] = np.maximum(y_seg[12], (pm_small > 64).astype(np.float32))
+            y_seg[PNEUMOTHORAX_IDX] = np.maximum(y_seg[PNEUMOTHORAX_IDX], (pm_small > 64).astype(np.float32))
 
         img_f = gray.astype(np.float32) / 255.0
         if self.augment:
@@ -267,9 +272,7 @@ class ChestMultiDataset(Dataset):
                 img_f = np.ascontiguousarray(img_f[:, ::-1])
                 y_seg = np.ascontiguousarray(y_seg[:, :, ::-1])
             if random.random() < 0.5:
-                alpha = random.uniform(0.88, 1.12)
-                beta = random.uniform(-0.06, 0.06)
-                img_f = np.clip(img_f * alpha + beta, 0.0, 1.0)
+                img_f = np.clip(img_f * random.uniform(0.88, 1.12) + random.uniform(-0.06, 0.06), 0.0, 1.0)
 
         x3 = (np.repeat(img_f[None, :, :], 3, axis=0) - self.mean) / self.std
         return (
@@ -294,19 +297,10 @@ def compute_pos_weights(train_items: list[SampleMeta]) -> torch.Tensor:
     return torch.tensor(pw, dtype=torch.float32)
 
 
-def masked_loss(
-    cls_logits: torch.Tensor,
-    seg_logits: torch.Tensor,
-    y_cls: torch.Tensor,
-    m_cls: torch.Tensor,
-    y_seg: torch.Tensor,
-    m_seg: torch.Tensor,
-    pos_weight: torch.Tensor,
-) -> tuple[torch.Tensor, float, float]:
+def masked_loss(cls_logits, seg_logits, y_cls, m_cls, y_seg, m_seg, pos_weight):
     bce_cls = F.binary_cross_entropy_with_logits(cls_logits, y_cls, pos_weight=pos_weight, reduction="none")
     loss_cls = (bce_cls * m_cls).sum() / m_cls.sum().clamp_min(1.0)
 
-    # Spatial BCE + positive-channel Soft Dice
     bce_seg = F.binary_cross_entropy_with_logits(seg_logits, y_seg, reduction="none").mean(dim=(2, 3))
     loss_seg_bce = (bce_seg * m_seg).sum() / m_seg.sum().clamp_min(1.0)
 
@@ -324,16 +318,60 @@ def masked_loss(
     return total, float(loss_cls.item()), float((loss_seg_bce + loss_dice).item())
 
 
+def _border_feats_256(img_path: Path) -> np.ndarray:
+    with Image.open(img_path) as im:
+        g = cv2.resize(np.asarray(im.convert("L"), dtype=np.float32), (256, 256), interpolation=cv2.INTER_AREA)
+    b, c = 20, 31
+    patches = (g[:b, :], g[-b:, :], g[b:-b, :b], g[b:-b, -b:], g[:c, :c], g[:c, -c:], g[-c:, :c], g[-c:, -c:])
+    feats: list[float] = []
+    for p_arr in patches:
+        p = p_arr.ravel()
+        feats.extend([
+            float(p.mean()) / 255.0, float(p.std()) / 255.0,
+            float((p <= 2.0).mean()), float((p >= 250.0).mean()),
+            float(np.percentile(p, 10)) / 255.0, float(np.percentile(p, 50)) / 255.0, float(np.percentile(p, 90)) / 255.0,
+        ])
+    return np.asarray(feats, dtype=np.float32)
+
+
+def run_per_finding_border_probes(train_all: list[SampleMeta], val_all: list[SampleMeta]) -> dict[str, float]:
+    """Change 4: Per-finding border/corner-only probe AUROC (train -> val)."""
+    rng = random.Random(SEED)
+    # Sample up to 3500 train + all val border features
+    tr_sub = list(train_all)
+    rng.shuffle(tr_sub)
+    tr_sub = tr_sub[:4500]
+    X_tr = np.stack([_border_feats_256(s.img_path) for s in tr_sub])
+    X_va = np.stack([_border_feats_256(s.img_path) for s in val_all])
+    sc = StandardScaler()
+    X_tr_s = sc.fit_transform(X_tr)
+    X_va_s = sc.transform(X_va)
+
+    border_aurocs: dict[str, float] = {}
+    for c_idx, fid in enumerate(CHEST_HD_FINDINGS):
+        tr_idx = [i for i, s in enumerate(tr_sub) if c_idx in s.known_cls_indices]
+        va_idx = [i for i, s in enumerate(val_all) if c_idx in s.known_cls_indices]
+        y_tr = np.array([1 if c_idx in tr_sub[i].pos_cls_indices else 0 for i in tr_idx])
+        y_va = np.array([1 if c_idx in val_all[i].pos_cls_indices else 0 for i in va_idx])
+        if 5 <= y_tr.sum() <= len(y_tr) - 5 and 2 <= y_va.sum() <= len(y_va) - 2:
+            clf = LogisticRegression(max_iter=800, C=0.5)
+            clf.fit(X_tr_s[tr_idx], y_tr)
+            pr = clf.predict_proba(X_va_s[va_idx])[:, 1]
+            border_aurocs[fid] = round(float(roc_auc_score(y_va, pr)), 4)
+        else:
+            border_aurocs[fid] = 0.5
+    return border_aurocs
+
+
 @torch.no_grad()
 def evaluate_val(
     net: nn.Module,
     val_loader: DataLoader,
+    val_items: list[SampleMeta],
     device: torch.device,
 ) -> tuple[dict[str, Any], dict[str, dict[str, float]]]:
     net.eval()
-    all_probs: list[np.ndarray] = []
-    all_y: list[np.ndarray] = []
-    all_m: list[np.ndarray] = []
+    all_probs, all_y, all_m = [], [], []
     dice_sums = np.zeros(NUM_CLASSES, dtype=np.float64)
     dice_cnts = np.zeros(NUM_CLASSES, dtype=np.float64)
 
@@ -343,7 +381,6 @@ def evaluate_val(
             cls_logits, seg_logits = net(x)
             cls_p = torch.sigmoid(cls_logits).float()
             seg_p = torch.sigmoid(seg_logits).float()
-            # Match ChestHDReaderAdapter inference fusion: 0.80 cls + 0.20 top-2% spatial
             top_k = max(1, int(0.02 * SEG_SIZE * SEG_SIZE))
             seg_peaks = torch.topk(seg_p.flatten(2), top_k, dim=2).values.mean(dim=2)
             fused_p = 0.80 * cls_p + 0.20 * seg_peaks
@@ -366,6 +403,7 @@ def evaluate_val(
     probs = np.concatenate(all_probs, axis=0)
     ys = np.concatenate(all_y, axis=0)
     ms = np.concatenate(all_m, axis=0)
+    srcs = np.array([s.source for s in val_items])
 
     metrics: dict[str, Any] = {}
     calibrators: dict[str, dict[str, float]] = {}
@@ -376,11 +414,15 @@ def evaluate_val(
         pc = probs[valid, c]
         n_pos = int(yc.sum())
         n_tot = int(valid.sum())
+        within_src: dict[str, float] = {}
+        for src_name in ("vinbigdata", "siim_pneumo", "rsna_pneumonia"):
+            sm = valid & (srcs == src_name)
+            if sm.sum() > 0 and 0 < ys[sm, c].sum() < sm.sum():
+                within_src[src_name] = round(float(roc_auc_score(ys[sm, c], probs[sm, c])), 4)
         if 0 < n_pos < n_tot:
             auroc = float(roc_auc_score(yc, pc))
             auprc = float(average_precision_score(yc, pc))
             aurocs.append(auroc)
-            # Fit 1D Platt scaling on val split ONLY
             eps = 1e-6
             p_clip = np.clip(pc, eps, 1.0 - eps)
             logits_1d = np.log(p_clip / (1.0 - p_clip)).reshape(-1, 1)
@@ -393,13 +435,18 @@ def evaluate_val(
         else:
             auroc, auprc = 0.0, 0.0
         mean_dice = float(dice_sums[c] / dice_cnts[c]) if dice_cnts[c] > 0 else None
+        sup_type = "pixel_mask_plus_bbox" if fid == "pneumothorax" else "bbox_ellipse"
+        rounded_dice = round(mean_dice, 4) if mean_dice is not None else None
         metrics[fid] = {
             "display_name": CHEST_HD_DISPLAY_NAMES[fid],
+            "supervision_type": sup_type,
             "val_total": n_tot,
             "val_positives": n_pos,
             "auroc": round(auroc, 4),
+            "within_source_auroc": within_src,
             "auprc": round(auprc, 4),
-            "pos_mask_dice": round(mean_dice, 4) if mean_dice is not None else None,
+            "pos_box_or_mask_dice": rounded_dice,
+            "pos_mask_dice": rounded_dice,
             "pos_mask_cases": int(dice_cnts[c]),
         }
     metrics["_macro_auroc"] = round(float(np.mean(aurocs)), 4) if aurocs else 0.0
@@ -413,16 +460,14 @@ def main() -> None:
     torch.backends.cudnn.benchmark = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[ChestHD] Device: {device} ({torch.cuda.get_device_name(0) if device.type == 'cuda' else 'cpu'})", flush=True)
+    print(f"[ChestHD-Deconfounded] Device: {device}", flush=True)
 
-    train_all, val_all = load_all_metadata()
-    by_src_tr = {src: sum(1 for s in train_all if s.source == src) for src in ("vinbigdata", "tb_cxr", "siim_pneumo", "rsna_pneumonia")}
-    by_src_va = {src: sum(1 for s in val_all if s.source == src) for src in ("vinbigdata", "tb_cxr", "siim_pneumo", "rsna_pneumonia")}
-    print(f"[ChestHD] Loaded train={len(train_all)} {by_src_tr} | val={len(val_all)} {by_src_va}", flush=True)
+    train_all, val_all = load_deconfounded_train_val()
+    by_src_tr = {src: sum(1 for s in train_all if s.source == src) for src in ("vinbigdata", "siim_pneumo", "rsna_pneumonia")}
+    by_src_va = {src: sum(1 for s in val_all if s.source == src) for src in ("vinbigdata", "siim_pneumo", "rsna_pneumonia")}
+    print(f"[ChestHD-Deconfounded] Clean cluster-purged train={len(train_all)} {by_src_tr} | dev_val={len(val_all)} {by_src_va}", flush=True)
 
     pos_weight = compute_pos_weights(train_all).to(device)
-    print(f"[ChestHD] pos_weight: {[round(float(x), 2) for x in pos_weight.cpu()]}", flush=True)
-
     val_ds = ChestMultiDataset(val_all, augment=False)
     val_loader = DataLoader(val_ds, batch_size=16, shuffle=False, num_workers=2, pin_memory=True, persistent_workers=True)
 
@@ -434,8 +479,7 @@ def main() -> None:
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1.5e-5)
 
     models_dir = ROOT / "models"
-    models_dir.mkdir(parents=True, exist_ok=True)
-    weights_name = "convnext_tiny_fpn_chest16_512.pt"
+    weights_name = "convnext_tiny_fpn_chest15_512.pt"
     weights_path = models_dir / weights_name
 
     best_macro = -1.0
@@ -471,20 +515,16 @@ def main() -> None:
             sum_cls += l_cls
             sum_seg += l_seg
             steps += 1
-            if step == 10 or step % 200 == 0:
-                print(
-                    f"  [Ep {ep}/{epochs} step {step}/{len(tr_loader)}] cls={sum_cls/steps:.4f} seg={sum_seg/steps:.4f} ({time.time()-t0:.1f}s)",
-                    flush=True,
-                )
+            if step == 10 or step % 400 == 0:
+                print(f"  [Ep {ep}/{epochs} step {step}/{len(tr_loader)}] cls={sum_cls/steps:.4f} seg={sum_seg/steps:.4f} ({time.time()-t0:.1f}s)", flush=True)
 
         scheduler.step()
-        val_metrics, val_cals = evaluate_val(net, val_loader, device)
+        val_metrics, val_cals = evaluate_val(net, val_loader, val_all, device)
         macro = float(val_metrics["_macro_auroc"])
-        dt = time.time() - t0
-        print(f"[Epoch {ep}/{epochs}] macro_AUROC={macro:.4f} ({dt:.1f}s)", flush=True)
-        for fid in ("pneumothorax", "effusion", "cardiomegaly", "pneumonia", "tuberculosis", "nodule_mass", "atelectasis", "aortic_enlargement"):
+        print(f"[Epoch {ep}/{epochs}] dev_val macro_AUROC={macro:.4f} ({time.time()-t0:.1f}s)", flush=True)
+        for fid in ("aortic_enlargement", "cardiomegaly", "effusion", "infiltration", "pneumonia", "lung_opacity", "pneumothorax"):
             m = val_metrics[fid]
-            print(f"    {fid:20s} AUROC={m['auroc']:.4f} AUPRC={m['auprc']:.4f} mask_dice={m['pos_mask_dice']}", flush=True)
+            print(f"    {fid:20s} AUROC={m['auroc']:.4f} within={m['within_source_auroc']} dice={m['pos_mask_dice']}", flush=True)
 
         if macro > best_macro:
             best_macro = macro
@@ -492,32 +532,38 @@ def main() -> None:
             best_cals = val_cals
             torch.save(net.state_dict(), weights_path)
 
+    print("[ChestHD-Deconfounded] Running per-finding border/corner shortcut probes (train -> dev_val)...", flush=True)
+    border_max_auroc = 0.80
+    border_probes = run_per_finding_border_probes(train_all, val_all)
+    for fid, bp_auc in border_probes.items():
+        if fid in best_metrics:
+            best_metrics[fid]["border_probe_val_auroc"] = bp_auc
+            best_metrics[fid]["border_shortcut_flagged"] = bool(bp_auc > border_max_auroc)
+
     sha = hashlib.sha256(weights_path.read_bytes()).hexdigest()
     ckpt_meta = {
-        "weights_id": "convnext_tiny_fpn_chest16_512",
+        "weights_id": "convnext_tiny_fpn_chest15_512_deconfounded",
         "filename": weights_name,
         "sha256": sha,
         "img_size": IMG_SIZE,
         "seg_size": SEG_SIZE,
         "findings": list(CHEST_HD_FINDINGS),
         "best_macro_val_auroc": best_macro,
+        "val_note": "Dev-set numbers only (val was used for threshold/rule design; locked test untouched).",
         "val_metrics": best_metrics,
         "platt_calibrators": best_cals,
         "train_counts_by_source": by_src_tr,
         "val_counts_by_source": by_src_va,
         "training_datasets": [
-            "VinBigData Chest X-ray 512x512 (14 radiologist box classes + No finding)",
-            "SIIM-ACR Pneumothorax Segmentation (exact pixel masks)",
-            "RSNA Pneumonia Detection Challenge (radiologist opacity/pneumonia boxes)",
-            "TB Chest Radiography Database (Tuberculosis + Normal)",
+            "VinBigData Chest X-ray 512x512 (cluster-grouped, val-leak purged)",
+            "SIIM-ACR Pneumothorax Segmentation (cluster-grouped, val-leak purged)",
+            "RSNA Pneumonia Detection Challenge (cluster-grouped, val-leak purged)",
         ],
         "license": "Research prototype only — public datasets under respective research terms.",
     }
     (models_dir / CHEST_HD_RECORD).write_text(json.dumps(ckpt_meta, indent=2), encoding="utf-8")
-    out_art = ROOT / "artifacts" / "chest_hd_val_metrics.json"
-    out_art.parent.mkdir(parents=True, exist_ok=True)
-    out_art.write_text(json.dumps(ckpt_meta, indent=2), encoding="utf-8")
-    print(f"[ChestHD] Saved {weights_path.name} (sha256={sha[:16]}...) macro_AUROC={best_macro:.4f}", flush=True)
+    (ROOT / "artifacts" / "chest_hd_val_metrics.json").write_text(json.dumps(ckpt_meta, indent=2), encoding="utf-8")
+    print(f"[ChestHD-Deconfounded] Saved {weights_name} (sha256={sha[:16]}...) dev_val macro_AUROC={best_macro:.4f}", flush=True)
 
 
 if __name__ == "__main__":

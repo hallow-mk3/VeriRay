@@ -1,0 +1,88 @@
+{
+  "split": "locked_test",
+  "verified_hashes": {
+    "configs/verifiable.yaml": "e3220aeb3a9aa5183b54f2209fce37a4018acbd3cb830ff8d8869439a3c676a5",
+    "data/manifests/chest_hd_manifest.csv": "3513eab4c9b966761f577753f1012fb5e61789092ec9469e8fe3ddf7c0aecf0e",
+    "data/manifests/brain_mri_leakage_aware_manifest.csv": "2b210d6fd9bb9e28d682548ad3a0d2d1851b60c2d119adf25c79e7062fcfc125"
+  },
+  "checkpoint": "convnext_tiny_fpn-brain-mri-5cls.pt",
+  "checkpoint_sha256": "09377fd624edb2092681afc072d727a089f05ad1468087a6bd964a53f836c625",
+  "test_slices_count": 1378,
+  "note": "One-shot locked test evaluation (Tr-aug synthetic copies purged; Kaggle Testing folder never read). Headline metrics are within-source.",
+  "headline_within_isles_stroke_vs_normal": {
+    "n_stroke_slices": 157,
+    "n_normal_slices": 133,
+    "auroc_p_stroke": 0.8315,
+    "auroc_stroke_vs_notumor": 0.8516,
+    "auprc_p_stroke": 0.8386,
+    "stroke_recall": 0.8471,
+    "normal_specificity_not_stroke": 0.6617,
+    "false_positive_stroke_rate_on_normal_isles": 0.3383,
+    "stroke_mask_dice": 0.5181
+  },
+  "within_brats_glioma_vs_normal": {
+    "n_glioma_slices": 294,
+    "n_normal_slices": 196,
+    "auroc_p_glioma": 0.8719,
+    "auprc_p_glioma": 0.9067,
+    "glioma_recall": 0.7585,
+    "false_positive_glioma_rate_on_normal_brats": 0.1684,
+    "glioma_mask_dice": 0.4405
+  },
+  "within_2d_4class": {
+    "n_slices": 598,
+    "accuracy_4cls": 0.8595,
+    "tumor_mask_dice_by_class": {
+      "meningioma": 0.8041,
+      "pituitary": 0.7937,
+      "glioma": 0.56
+    }
+  },
+  "pooled_5cls_locked_test_accuracy": 0.8135,
+  "overall_lesion_segmentation_dice_locked_test": 0.569,
+  "classification_report_locked_test": {
+    "glioma": {
+      "precision": 0.9116945107398569,
+      "recall": 0.7892561983471075,
+      "f1-score": 0.8460686600221484,
+      "support": 484.0
+    },
+    "meningioma": {
+      "precision": 0.7401129943502824,
+      "recall": 0.8791946308724832,
+      "f1-score": 0.803680981595092,
+      "support": 149.0
+    },
+    "notumor": {
+      "precision": 0.8161616161616162,
+      "recall": 0.792156862745098,
+      "f1-score": 0.8039800995024876,
+      "support": 510.0
+    },
+    "pituitary": {
+      "precision": 0.6513761467889908,
+      "recall": 0.9102564102564102,
+      "f1-score": 0.7593582887700535,
+      "support": 78.0
+    },
+    "ischemic_stroke": {
+      "precision": 0.7471910112359551,
+      "recall": 0.8471337579617835,
+      "f1-score": 0.7940298507462686,
+      "support": 157.0
+    },
+    "accuracy": 0.8134978229317852,
+    "macro avg": {
+      "precision": 0.7733072558553402,
+      "recall": 0.8435995720365763,
+      "f1-score": 0.80142357612721,
+      "support": 1378.0
+    },
+    "weighted avg": {
+      "precision": 0.824307497686715,
+      "recall": 0.8134978229317852,
+      "f1-score": 0.8150712493076092,
+      "support": 1378.0
+    }
+  }
+}

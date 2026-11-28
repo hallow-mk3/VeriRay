@@ -7,10 +7,12 @@ Run locally (binds 127.0.0.1 only):
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import time
 from typing import Any
 
 from fastapi import FastAPI, File, Query, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from api.schemas import (
     BatchVerifyResponse,
@@ -35,6 +37,18 @@ from veriray.safety import answer_chat_question, sanitize_for_prompt
 ROOT = Path(__file__).resolve().parents[1]
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 MAX_BATCH_FILES = 20
+MAX_MANIFEST_RUN_DIRS = 200
+
+
+def _prune_manifest_dir(mdir: Path | None) -> None:
+    if mdir is None or not mdir.is_dir():
+        return
+    try:
+        subdirs = sorted((p for p in mdir.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
+        for stale in subdirs[:-MAX_MANIFEST_RUN_DIRS]:
+            shutil.rmtree(stale, ignore_errors=True)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _to_verify_response(sample_name: str, res: VerificationResult, finding_id: str = "pneumothorax") -> VerifyResponse:
@@ -84,7 +98,7 @@ def _fail_closed_response(sample_name: str, reason_code: str) -> VerifyResponse:
 def create_app(
     *,
     models_dir: Path | str = ROOT / "models",
-    manifest_dir: Path | str | None = ROOT / "artifacts" / "tmp" / "runs",
+    manifest_dir: Path | str | None = None,
     reader: Reader | None = None,
 ) -> FastAPI:
     """Create a local FastAPI app; fails closed to INDETERMINATE on any model/input/runtime fault."""
@@ -181,24 +195,29 @@ def create_app(
             payload = await file.read()
             if len(payload) > MAX_UPLOAD_BYTES:
                 return _fail_closed_response(name, "INPUT_TOO_LARGE")
-            res = run_verification(
-                payload,
-                filename_hint=name,
-                reader=r,
-                models_dir=state["models_dir"],
-                manifest_dir=state["manifest_dir"],
-                locator_cfg=loc_cfg,
-                judge_cfg=judge_cfg,
-                finding_id=finding_norm,
-            )
-            return _to_verify_response(name, res, finding_id=finding_norm)
+
+            def _run_one() -> VerifyResponse:
+                res = run_verification(
+                    payload,
+                    filename_hint=name,
+                    reader=r,
+                    models_dir=state["models_dir"],
+                    manifest_dir=state["manifest_dir"],
+                    locator_cfg=loc_cfg,
+                    judge_cfg=judge_cfg,
+                    finding_id=finding_norm,
+                )
+                _prune_manifest_dir(state["manifest_dir"])
+                return _to_verify_response(name, res, finding_id=finding_norm)
+
+            return await run_in_threadpool(_run_one)
         except Exception:  # noqa: BLE001 - never expose 500 stack traces
             return _fail_closed_response(name, "API_INTERNAL_ERROR")
 
     @app.post("/verify-batch", response_model=BatchVerifyResponse)
     async def verify_batch(
         files: list[UploadFile] = File(...),
-        finding_id: str = Query("pneumothorax", description="Target finding: pneumothorax, effusion, or cardiomegaly"),
+        finding_id: str = Query("pneumothorax", description="Target thoracic finding"),
     ) -> BatchVerifyResponse:
         t0 = time.perf_counter()
         results: list[VerifyResponse] = []
@@ -215,7 +234,7 @@ def create_app(
                 results=results,
                 total_elapsed_ms=round((time.perf_counter() - t0) * 1000.0, 3),
             )
-        r, err = _get_reader_for_finding(finding_norm)
+        r, err = await run_in_threadpool(_get_reader_for_finding, finding_norm)
         for f in files[:MAX_BATCH_FILES]:
             name = f.filename or "upload.png"
             if r is None:
@@ -226,21 +245,25 @@ def create_app(
                     if len(payload) > MAX_UPLOAD_BYTES:
                         vr = _fail_closed_response(name, "INPUT_TOO_LARGE")
                     else:
-                        res = run_verification(
-                            payload,
-                            filename_hint=name,
-                            reader=r,
-                            models_dir=state["models_dir"],
-                            manifest_dir=state["manifest_dir"],
-                            locator_cfg=loc_cfg,
-                            judge_cfg=judge_cfg,
-                            finding_id=finding_norm,
-                        )
-                        vr = _to_verify_response(name, res, finding_id=finding_norm)
+                        def _run_batch_item(p_bytes: bytes = payload, nm: str = name) -> VerifyResponse:
+                            res = run_verification(
+                                p_bytes,
+                                filename_hint=nm,
+                                reader=r,
+                                models_dir=state["models_dir"],
+                                manifest_dir=state["manifest_dir"],
+                                locator_cfg=loc_cfg,
+                                judge_cfg=judge_cfg,
+                                finding_id=finding_norm,
+                            )
+                            return _to_verify_response(nm, res, finding_id=finding_norm)
+
+                        vr = await run_in_threadpool(_run_batch_item)
                 except Exception:  # noqa: BLE001
                     vr = _fail_closed_response(name, "API_INTERNAL_ERROR")
             results.append(vr)
             counts[vr.verdict] = counts.get(vr.verdict, 0) + 1
+        _prune_manifest_dir(state["manifest_dir"])
         return BatchVerifyResponse(
             total_cases=len(results),
             verdict_counts=counts,
@@ -255,7 +278,7 @@ def create_app(
             try:
                 ev = EvidenceRecord(
                     record_id="api-chat",
-                    finding_id="pneumothorax",
+                    finding_id=req.finding_id,
                     verdict=Verdict(req.verdict),
                     reason_codes=tuple(req.reason_codes or ["API_CHAT"]),
                     items=req.evidence_items,
@@ -274,47 +297,52 @@ def create_app(
     async def verify_brain(file: UploadFile = File(...)) -> BrainVerifyResponse:
         import numpy as np
 
-        name = sanitize_for_prompt(file.filename or "brain.png") or "brain.png"
+        raw_filename = file.filename or "brain.png"
+        name = sanitize_for_prompt(raw_filename) or "brain.png"
         try:
             payload = await file.read()
             if len(payload) > MAX_UPLOAD_BYTES:
                 return BrainVerifyResponse(sample_name=name, reason_codes=["INPUT_TOO_LARGE"], disclaimer=RESEARCH_DISCLAIMER)
-            if state["brain_reader"] is None:
-                state["brain_reader"] = BrainMRIReader.load(state["models_dir"])
-            bm_r: BrainMRIReader = state["brain_reader"]
-            arr = decode_brain_upload(payload, file.filename or "brain.png")
-            out = bm_r.predict_and_cam(arr)
-            pred = out["predicted_class"]
-            target_drop = None
-            c_med = None
-            emp_rank = None
-            n_ctrl = 0
-            mask = out["target_mask"]
-            if mask.any() and not mask.all():
-                cf = erase(out["display_image"], mask, "telea", seed=0)
-                cf_out = bm_r.predict_and_cam(cf.edited_image)
-                target_drop = round(float(out["scores"][pred] - cf_out["scores"][pred]), 6)
-                ctrl_res = generate_matched_controls(mask, ControlConfig(k=9, min_controls=3, seed=20261126))
-                if ctrl_res.valid:
-                    c_drops = [
-                        float(out["scores"][pred] - bm_r.predict_and_cam(erase(out["display_image"], cm, "telea", seed=ci + 1).edited_image)["scores"][pred])
-                        for ci, cm in enumerate(ctrl_res.masks)
-                    ]
-                    n_ctrl = len(c_drops)
-                    c_med = round(float(np.median(c_drops)), 6)
-                    emp_rank = 1 + int(np.sum(np.asarray(c_drops) >= target_drop))
-            return BrainVerifyResponse(
-                sample_name=name,
-                predicted_class=pred,
-                scores={k: round(float(v), 6) for k, v in out["scores"].items()},
-                target_score_drop=target_drop,
-                control_median_drop=c_med,
-                empirical_rank=emp_rank,
-                num_controls=n_ctrl,
-                checkpoint_id=out["checkpoint_id"],
-                reason_codes=["BRAIN_MRI_OK"],
-                disclaimer=RESEARCH_DISCLAIMER,
-            )
+
+            def _run_brain() -> BrainVerifyResponse:
+                if state["brain_reader"] is None:
+                    state["brain_reader"] = BrainMRIReader.load(state["models_dir"])
+                bm_r: BrainMRIReader = state["brain_reader"]
+                arr = decode_brain_upload(payload, raw_filename)
+                out = bm_r.predict_and_cam(arr)
+                pred = out["predicted_class"]
+                target_drop = None
+                c_med = None
+                emp_rank = None
+                n_ctrl = 0
+                mask = out["target_mask"]
+                if mask.any() and not mask.all():
+                    cf = erase(out["display_image"], mask, "telea", seed=0)
+                    cf_out = bm_r.predict_and_cam(cf.edited_image)
+                    target_drop = round(float(out["scores"][pred] - cf_out["scores"][pred]), 6)
+                    ctrl_res = generate_matched_controls(mask, ControlConfig(k=9, min_controls=3, seed=20261126))
+                    if ctrl_res.valid:
+                        c_drops = [
+                            float(out["scores"][pred] - bm_r.predict_and_cam(erase(out["display_image"], cm, "telea", seed=ci + 1).edited_image)["scores"][pred])
+                            for ci, cm in enumerate(ctrl_res.masks)
+                        ]
+                        n_ctrl = len(c_drops)
+                        c_med = round(float(np.median(c_drops)), 6)
+                        emp_rank = 1 + int(np.sum(np.asarray(c_drops) >= target_drop))
+                return BrainVerifyResponse(
+                    sample_name=name,
+                    predicted_class=pred,
+                    scores={k: round(float(v), 6) for k, v in out["scores"].items()},
+                    target_score_drop=target_drop,
+                    control_median_drop=c_med,
+                    empirical_rank=emp_rank,
+                    num_controls=n_ctrl,
+                    checkpoint_id=out["checkpoint_id"],
+                    reason_codes=["BRAIN_MRI_OK"],
+                    disclaimer=RESEARCH_DISCLAIMER,
+                )
+
+            return await run_in_threadpool(_run_brain)
         except BrainMRIError as exc:
             return BrainVerifyResponse(sample_name=name, reason_codes=[exc.reason_code], disclaimer=RESEARCH_DISCLAIMER)
         except Exception:  # noqa: BLE001

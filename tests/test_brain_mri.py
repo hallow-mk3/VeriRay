@@ -12,7 +12,13 @@ import torch
 import torchvision.models as tvm
 
 from tests.conftest import synthetic_xray
-from veriray.brain_mri import BRAIN_CLASSES, BRAIN_RECORD, BrainMRIError, BrainMRIReader
+from veriray.brain_mri import (
+    BRAIN_CLASSES,
+    BRAIN_RECORD,
+    BrainMRIError,
+    BrainMRIReader,
+    decode_brain_upload,
+)
 
 
 def test_brain_mri_fails_closed_on_missing_or_tampered_weights(tmp_path: Path):
@@ -59,3 +65,46 @@ def test_brain_mri_fails_closed_on_bad_record_and_bad_input(tmp_path: Path):
     with pytest.raises(BrainMRIError) as e_bad:
         reader.predict_and_cam(np.full((64, 64), np.nan, dtype=np.float32))
     assert e_bad.value.reason_code == "BRAIN_BAD_INPUT"
+
+
+def test_brain_upload_gate_blocks_color_tiny_and_gzip_bomb_in_memory():
+    import gzip
+    import io
+    import nibabel as nib
+    from PIL import Image
+
+    # 1. Multi-hue RGB photo rejected
+    rgb = np.zeros((128, 128, 3), dtype=np.uint8)
+    rgb[..., 0] = 210
+    rgb[..., 1] = 140
+    rgb[..., 2] = 95
+    buf_rgb = io.BytesIO()
+    Image.fromarray(rgb, mode="RGB").save(buf_rgb, format="PNG")
+    with pytest.raises(BrainMRIError) as e_rgb:
+        decode_brain_upload(buf_rgb.getvalue(), "selfie.png")
+    assert e_rgb.value.reason_code == "NON_MRI_COLOR_IMAGE"
+
+    # 2. Tiny 2x2 image rejected
+    buf_tiny = io.BytesIO()
+    Image.fromarray(np.array([[10, 240], [120, 60]], dtype=np.uint8), mode="L").save(buf_tiny, format="PNG")
+    with pytest.raises(BrainMRIError) as e_tiny:
+        decode_brain_upload(buf_tiny.getvalue(), "tiny.png")
+    assert e_tiny.value.reason_code == "IMAGE_TOO_SMALL"
+
+    # 3. Gzip bomb (> 128 MB decompressed from tiny compressed payload) aborted safely
+    bomb_gz = gzip.compress(b"\x00" * (130 * 1024 * 1024), compresslevel=9)
+    assert len(bomb_gz) < 1024 * 1024
+    with pytest.raises(BrainMRIError) as e_bomb:
+        decode_brain_upload(bomb_gz, "bomb.nii.gz")
+    assert e_bomb.value.reason_code == "IMAGE_TOO_LARGE_OR_BOMB"
+
+    # 4. Valid 3D .nii.gz decoded 100% in memory without touching tempfile
+    rng = np.random.default_rng(42)
+    vol = rng.normal(120.0, 30.0, size=(64, 64, 16)).astype(np.float32)
+    nii_img = nib.Nifti1Image(vol, np.eye(4))
+    bio = io.BytesIO()
+    fh = nib.FileHolder(fileobj=bio)
+    nii_img.to_file_map({"header": fh, "image": fh})
+    gz_valid = gzip.compress(bio.getvalue(), compresslevel=1)
+    sl = decode_brain_upload(gz_valid, "valid_scan.nii.gz")
+    assert sl.shape == (64, 64) and sl.dtype == np.float32

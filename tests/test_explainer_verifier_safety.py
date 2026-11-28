@@ -151,3 +151,45 @@ def test_explainer_handles_low_score_no_finding_without_controls():
     assert len(out.sentences) == 3
     assert "below the positive-prediction threshold" in out.sentences[1].text
     assert "No monitored thoracic finding exceeded" in out.sentences[2].text
+
+
+def test_multifinding_explainer_verifier_and_chat_do_not_hardcode_pneumothorax():
+    ev_pna = EvidenceRecord(
+        record_id="ev-pna",
+        finding_id="pneumonia",
+        verdict=Verdict.MODEL_SUPPORTED,
+        reason_codes=("JUDGE_ALL_GATES_PASSED",),
+        items={
+            "E01_MODEL_SCORE_RAW": 0.8812,
+            "E02_VERDICT": Verdict.MODEL_SUPPORTED.value,
+            "E03_REASON_CODES": ["JUDGE_ALL_GATES_PASSED"],
+            "E04_TARGET_SCORE_DROP_PRIMARY": 0.3124,
+            "E06_CONTROL_COUNT": 19,
+            "E07_CONTROL_SCORE_DROP_MEDIAN": 0.0211,
+            "E08_EMPIRICAL_TAIL_FRACTION": 0.05,
+            "E11_MASK_MIN_STABILITY_IOU": 0.84,
+            "E12_UNRELATED_LABEL_MAX_DRIFT": 0.012,
+        },
+    )
+    out = explain_verified(ev_pna)
+    assert out.verifier_report.dropped_count == 0
+    assert not out.verifier_report.used_template_fallback
+    joined = " ".join(s.text.lower() for s in out.sentences)
+    assert "pneumonia" in joined and "pneumothorax" not in joined
+
+    # Injecting newly added unverified findings onto a pneumothorax record must be blocked
+    ev_ptx = _ev(Verdict.MODEL_SUPPORTED)
+    ok, reasons = verify_sentence(
+        ExplanationSentence(
+            text="Aortic enlargement and calcification were also seen [E02_VERDICT].",
+            evidence_ids=("E02_VERDICT",),
+        ),
+        ev_ptx,
+    )
+    assert not ok and any("UNVERIFIED_FINDING_MENTIONED" in r for r in reasons)
+
+    # Grounded chat must name pneumonia, never pneumothorax, on a pneumonia EvidenceRecord
+    chat = answer_chat_question("What is the verdict and score?", ev_pna)
+    assert chat.allowed
+    assert "pneumonia" in chat.answer.lower()
+    assert "pneumothorax" not in chat.answer.lower()

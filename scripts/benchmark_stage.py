@@ -24,15 +24,18 @@ from veriray.reader import Reader  # noqa: E402
 
 
 def main() -> int:
+    import torch
+
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.perf_counter()
-    reader = Reader.load(ROOT / "models")
+    reader = Reader.load_for_finding(ROOT / "models", "pneumothorax", device=dev)
     reader_cold_ms = (time.perf_counter() - t0) * 1000.0
 
     t1 = time.perf_counter()
-    seg = LungSegmenter.load_optional(ROOT / "models")
+    seg = LungSegmenter.load_optional(ROOT / "models", device=dev)
     seg_cold_ms = (time.perf_counter() - t1) * 1000.0
 
-    img = synthetic_xray(320, 320, seed=7)
+    img = synthetic_xray(512, 512, seed=7)
     runs = []
     for _ in range(10):
         res = run_verification(img, reader=reader, manifest_dir=None)
@@ -48,7 +51,7 @@ def main() -> int:
         )
 
     report = {
-        "hardware": "local workstation (CPU inference for DenseNet-121 + PSPNet)",
+        "hardware": f"local workstation ({dev.upper()} inference for {reader.checkpoint_id} + PSPNet)",
         "cold_start_ms": {
             "reader_load": round(reader_cold_ms, 2),
             "lung_segmenter_load": round(seg_cold_ms, 2),

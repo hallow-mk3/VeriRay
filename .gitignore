@@ -16,4 +16,6 @@ models/medgemma/
 *.safetensors
 data/*
 !data/manifests/
+data/manifests/brain_mri_leakage_aware_manifest.csv
+data/manifests/chest_hd_manifest.csv
 artifacts/tmp/

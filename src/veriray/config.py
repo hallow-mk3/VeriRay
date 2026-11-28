@@ -57,7 +57,7 @@ def freeze_config(
     }
     text = yaml.safe_dump(payload, sort_keys=False)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    target.write_text(text, encoding="utf-8")
+    target.write_text(text, encoding="utf-8", newline="\n")
     target.with_suffix(".sha256.json").write_text(
         json.dumps({"config_path": str(target), "sha256": digest, "fitted_split": fitted_split}, indent=2) + "\n",
         encoding="utf-8",

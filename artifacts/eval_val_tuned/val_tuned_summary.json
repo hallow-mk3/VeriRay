@@ -1,46 +1,45 @@
 {
   "reason_counts": {
-    "JUDGE_INSUFFICIENT_CONTROLS": 89,
-    "INSUFFICIENT_MATCHED_CONTROLS": 89,
-    "JUDGE_ALL_GATES_PASSED": 58,
-    "TARGET_DROP_BELOW_THRESHOLD": 38,
-    "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 26,
-    "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 40,
-    "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 57,
-    "JUDGE_LOCATOR_WEAK_OR_UNSTABLE": 47
+    "JUDGE_LOCATOR_WEAK_OR_UNSTABLE": 198,
+    "TARGET_DROP_BELOW_THRESHOLD": 48,
+    "MARGIN_OVER_CONTROLS_BELOW_THRESHOLD": 32,
+    "EMPIRICAL_RANK_NOT_DISTINCT_FROM_CONTROLS": 36,
+    "JUDGE_ALL_GATES_PASSED": 24,
+    "SHORTCUT_OUT_OF_LUNG_ATTRIBUTION": 21,
+    "JUDGE_MASK_UNSTABLE": 9
   },
   "tuned_stats": {
-    "precision": 0.9473684210526315,
-    "coverage": 0.06333333333333334,
-    "accepted_count": 19
+    "precision": 0.8888888888888888,
+    "coverage": 0.06,
+    "accepted_count": 18
   },
   "comparison": {
     "n": 300,
     "operating_point": {
       "full_judge": {
         "n": 300,
-        "accepted_count": 19,
-        "abstention_count": 281,
-        "coverage": 0.06333333333333334,
-        "abstention_rate": 0.9366666666666666,
-        "precision": 0.9473684210526315,
-        "risk": 0.052631578947368474,
+        "accepted_count": 18,
+        "abstention_count": 282,
+        "coverage": 0.06,
+        "abstention_rate": 0.94,
+        "precision": 0.8888888888888888,
+        "risk": 0.11111111111111116,
         "precision_ci95": [
-          0.8144444444444444,
+          0.7142857142857143,
           1.0
         ],
         "low_coverage_warning": false
       },
       "reader_at_same_coverage": {
         "n": 300,
-        "accepted_count": 19,
-        "abstention_count": 281,
-        "coverage": 0.06333333333333334,
-        "abstention_rate": 0.9366666666666666,
-        "precision": 0.9473684210526315,
-        "risk": 0.052631578947368474,
+        "accepted_count": 18,
+        "abstention_count": 282,
+        "coverage": 0.06,
+        "abstention_rate": 0.94,
+        "precision": 0.8888888888888888,
+        "risk": 0.11111111111111116,
         "precision_ci95": [
-          0.8119791666666667,
+          0.7142857142857143,
           1.0
         ],
         "low_coverage_warning": false
@@ -56,18 +55,18 @@
           "abstention_count": 225,
           "coverage": 0.25,
           "abstention_rate": 0.75,
-          "precision": 0.84,
-          "risk": 0.16000000000000003,
+          "precision": 0.88,
+          "risk": 0.12,
           "precision_ci95": [
-            0.7424120234604106,
-            0.9232142857142858
+            0.8023574561403509,
+            0.9474021592442644
           ],
           "low_coverage_warning": false
         },
         "full_judge": {
           "attainable": false,
-          "coverage": 0.06333333333333334,
-          "accepted_count": 19
+          "coverage": 0.06,
+          "accepted_count": 18
         }
       },
       {
@@ -78,18 +77,18 @@
           "abstention_count": 150,
           "coverage": 0.5,
           "abstention_rate": 0.5,
-          "precision": 0.72,
-          "risk": 0.28,
+          "precision": 0.7533333333333333,
+          "risk": 0.2466666666666667,
           "precision_ci95": [
-            0.6178140669467407,
-            0.8104575163398693
+            0.6773852794184461,
+            0.8300170068027212
           ],
           "low_coverage_warning": false
         },
         "full_judge": {
           "attainable": false,
-          "coverage": 0.06333333333333334,
-          "accepted_count": 19
+          "coverage": 0.06,
+          "accepted_count": 18
         }
       },
       {
@@ -100,18 +99,18 @@
           "abstention_count": 75,
           "coverage": 0.75,
           "abstention_rate": 0.25,
-          "precision": 0.6,
-          "risk": 0.4,
+          "precision": 0.6133333333333333,
+          "risk": 0.3866666666666667,
           "precision_ci95": [
-            0.5258468303726924,
-            0.685600608053608
+            0.5375639881651247,
+            0.7043926392067125
           ],
           "low_coverage_warning": false
         },
         "full_judge": {
           "attainable": false,
-          "coverage": 0.06333333333333334,
-          "accepted_count": 19
+          "coverage": 0.06,
+          "accepted_count": 18
         }
       }
     ]

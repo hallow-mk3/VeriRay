@@ -28,10 +28,10 @@ from eval.metrics import (  # noqa: E402
 )
 from eval.risk_coverage import compare_reader_vs_judge, plot_risk_coverage  # noqa: E402
 from eval.run_eval import _age_band, _index_images, _load_bboxes  # noqa: E402
-from scripts.val_diagnose_and_tune import _load_nih_trained_reader  # noqa: E402
 from veriray.config import configs_from_yaml  # noqa: E402
 from veriray.contracts import Verdict  # noqa: E402
 from veriray.pipeline import run_verification  # noqa: E402
+from veriray.reader import Reader  # noqa: E402
 from veriray.splits import load_manifest, select_split  # noqa: E402
 from veriray.vlm import MedGemmaRunner, VLMConfig, run_grounded_vlm_explainer  # noqa: E402
 
@@ -44,12 +44,13 @@ def main() -> int:
 
     loc_cfg, judge_cfg, _ = configs_from_yaml(frozen_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    reader = _load_nih_trained_reader(device)
+    reader = Reader.load_for_finding(ROOT / "models", "pneumothorax", device=device)
 
     rows = load_manifest(ROOT / "data" / "manifests" / "nih_manifest.csv")
     test_rows = select_split(rows, "test", allow_test=True)
     index = _index_images(Path(r"C:\Users\swast\nih"))
-    boxes = _load_bboxes(Path(r"C:\Users\swast\nih\BBox_List_2017.csv"))
+    model_sz = float(getattr(reader, "img_size", 224))
+    boxes = _load_bboxes(Path(r"C:\Users\swast\nih\BBox_List_2017.csv"), target_size=model_sz)
 
     # Balanced 400-case locked test sample + any reporting-half bbox images
     pos = [r for r in test_rows if r["pneumothorax"] == 1 and r["image"] in index]

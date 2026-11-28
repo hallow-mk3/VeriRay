@@ -1,0 +1,265 @@
+{
+  "split": "test",
+  "checkpoint": "convnext_tiny_fpn_chest15_512.pt",
+  "checkpoint_sha256": "2d232d1c0196e5dfad9571bbe22c827fbacbcdce59913d7d99c92d80c37dbb17",
+  "mapped_findings_count": 10,
+  "mapping": {
+    "atelectasis": [
+      "Atelectasis"
+    ],
+    "cardiomegaly": [
+      "Cardiomegaly"
+    ],
+    "effusion": [
+      "Effusion"
+    ],
+    "infiltration": [
+      "Infiltration"
+    ],
+    "nodule_mass": [
+      "Mass",
+      "Nodule"
+    ],
+    "pneumonia": [
+      "Pneumonia"
+    ],
+    "pneumothorax": [
+      "Pneumothorax"
+    ],
+    "consolidation": [
+      "Consolidation"
+    ],
+    "pleural_thickening": [
+      "Pleural_Thickening"
+    ],
+    "pulmonary_fibrosis": [
+      "Fibrosis"
+    ]
+  },
+  "unmapped_nih_labels": {
+    "Edema": "No dedicated pulmonary edema head in ChestHD.",
+    "Emphysema": "No emphysema / hyperinflation head in ChestHD.",
+    "Hernia": "No hiatal/diaphragmatic hernia head in ChestHD."
+  },
+  "unmapped_chest_hd_findings": {
+    "aortic_enlargement": "Not annotated in NIH ChestX-ray14.",
+    "calcification": "Not annotated in NIH ChestX-ray14.",
+    "ild": "Broader interstitial lung disease category than NIH 'Fibrosis' alone.",
+    "other_lesion": "Residual catch-all category in VinBigData with no NIH counterpart.",
+    "lung_opacity": "Super-class umbrella term not directly annotated as a standalone NIH label."
+  },
+  "metrics": {
+    "atelectasis": {
+      "display_name": "Atelectasis",
+      "nih_source_labels": [
+        "Atelectasis"
+      ],
+      "n_images": 25596,
+      "n_positives": 3279,
+      "auroc": 0.5371,
+      "auroc_95ci": [
+        0.5198,
+        0.5579
+      ],
+      "auprc": 0.1295,
+      "auprc_95ci": [
+        0.1191,
+        0.1405
+      ],
+      "brier_raw": 0.1683,
+      "nih_bbox_cases": 180,
+      "pointing_game_hit_rate": 0.45,
+      "mean_bbox_iou": 0.1508
+    },
+    "cardiomegaly": {
+      "display_name": "Cardiomegaly",
+      "nih_source_labels": [
+        "Cardiomegaly"
+      ],
+      "n_images": 25596,
+      "n_positives": 1069,
+      "auroc": 0.758,
+      "auroc_95ci": [
+        0.7298,
+        0.7836
+      ],
+      "auprc": 0.1422,
+      "auprc_95ci": [
+        0.1109,
+        0.1771
+      ],
+      "brier_raw": 0.3204,
+      "nih_bbox_cases": 146,
+      "pointing_game_hit_rate": 1.0,
+      "mean_bbox_iou": 0.4051
+    },
+    "effusion": {
+      "display_name": "Pleural effusion",
+      "nih_source_labels": [
+        "Effusion"
+      ],
+      "n_images": 25596,
+      "n_positives": 4658,
+      "auroc": 0.7752,
+      "auroc_95ci": [
+        0.7633,
+        0.7877
+      ],
+      "auprc": 0.4223,
+      "auprc_95ci": [
+        0.3967,
+        0.4488
+      ],
+      "brier_raw": 0.2656,
+      "nih_bbox_cases": 153,
+      "pointing_game_hit_rate": 0.6993,
+      "mean_bbox_iou": 0.2208
+    },
+    "infiltration": {
+      "display_name": "Infiltration",
+      "nih_source_labels": [
+        "Infiltration"
+      ],
+      "n_images": 25596,
+      "n_positives": 6112,
+      "auroc": 0.7022,
+      "auroc_95ci": [
+        0.6924,
+        0.7112
+      ],
+      "auprc": 0.3914,
+      "auprc_95ci": [
+        0.3714,
+        0.4106
+      ],
+      "brier_raw": 0.2731,
+      "nih_bbox_cases": 123,
+      "pointing_game_hit_rate": 0.7967,
+      "mean_bbox_iou": 0.3997
+    },
+    "nodule_mass": {
+      "display_name": "Nodule / Mass",
+      "nih_source_labels": [
+        "Mass",
+        "Nodule"
+      ],
+      "n_images": 25596,
+      "n_positives": 3052,
+      "auroc": 0.6887,
+      "auroc_95ci": [
+        0.6674,
+        0.7062
+      ],
+      "auprc": 0.2812,
+      "auprc_95ci": [
+        0.2478,
+        0.3117
+      ],
+      "brier_raw": 0.1872,
+      "nih_bbox_cases": 164,
+      "pointing_game_hit_rate": 0.5183,
+      "mean_bbox_iou": 0.2131
+    },
+    "pneumonia": {
+      "display_name": "Pneumonia",
+      "nih_source_labels": [
+        "Pneumonia"
+      ],
+      "n_images": 25596,
+      "n_positives": 555,
+      "auroc": 0.7041,
+      "auroc_95ci": [
+        0.6773,
+        0.7299
+      ],
+      "auprc": 0.047,
+      "auprc_95ci": [
+        0.0388,
+        0.0601
+      ],
+      "brier_raw": 0.4287,
+      "nih_bbox_cases": 120,
+      "pointing_game_hit_rate": 0.8583,
+      "mean_bbox_iou": 0.453
+    },
+    "pneumothorax": {
+      "display_name": "Pneumothorax",
+      "nih_source_labels": [
+        "Pneumothorax"
+      ],
+      "n_images": 25596,
+      "n_positives": 2665,
+      "auroc": 0.8829,
+      "auroc_95ci": [
+        0.8711,
+        0.8941
+      ],
+      "auprc": 0.4688,
+      "auprc_95ci": [
+        0.4122,
+        0.5231
+      ],
+      "brier_raw": 0.1122,
+      "nih_bbox_cases": 98,
+      "pointing_game_hit_rate": 0.6837,
+      "mean_bbox_iou": 0.1761
+    },
+    "consolidation": {
+      "display_name": "Consolidation",
+      "nih_source_labels": [
+        "Consolidation"
+      ],
+      "n_images": 25596,
+      "n_positives": 1815,
+      "auroc": 0.7088,
+      "auroc_95ci": [
+        0.6928,
+        0.7252
+      ],
+      "auprc": 0.1276,
+      "auprc_95ci": [
+        0.114,
+        0.1438
+      ],
+      "brier_raw": 0.3086
+    },
+    "pleural_thickening": {
+      "display_name": "Pleural thickening",
+      "nih_source_labels": [
+        "Pleural_Thickening"
+      ],
+      "n_images": 25596,
+      "n_positives": 1143,
+      "auroc": 0.6914,
+      "auroc_95ci": [
+        0.6716,
+        0.713
+      ],
+      "auprc": 0.087,
+      "auprc_95ci": [
+        0.0748,
+        0.1015
+      ],
+      "brier_raw": 0.2695
+    },
+    "pulmonary_fibrosis": {
+      "display_name": "Pulmonary fibrosis",
+      "nih_source_labels": [
+        "Fibrosis"
+      ],
+      "n_images": 25596,
+      "n_positives": 435,
+      "auroc": 0.5937,
+      "auroc_95ci": [
+        0.5513,
+        0.6321
+      ],
+      "auprc": 0.0296,
+      "auprc_95ci": [
+        0.0217,
+        0.0406
+      ],
+      "brier_raw": 0.2638
+    }
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "split": "locked_test",
+  "verified_hashes": {
+    "configs/verifiable.yaml": "e3220aeb3a9aa5183b54f2209fce37a4018acbd3cb830ff8d8869439a3c676a5",
+    "data/manifests/chest_hd_manifest.csv": "3513eab4c9b966761f577753f1012fb5e61789092ec9469e8fe3ddf7c0aecf0e",
+    "data/manifests/brain_mri_leakage_aware_manifest.csv": "2b210d6fd9bb9e28d682548ad3a0d2d1851b60c2d119adf25c79e7062fcfc125"
+  },
+  "checkpoint": "convnext_tiny_fpn_chest15_512.pt",
+  "checkpoint_sha256": "2d232d1c0196e5dfad9571bbe22c827fbacbcdce59913d7d99c92d80c37dbb17",
+  "test_scans_count": 7721,
+  "test_counts_by_source": {
+    "vinbigdata": 2256,
+    "siim_pneumo": 1493,
+    "rsna_pneumonia": 3972
+  },
+  "macro_locked_test_auroc_15_findings": 0.9519,
+  "frozen_admission_rule": {
+    "min_positives_per_split": 100,
+    "min_pos_box_or_mask_dice": 0.5,
+    "max_border_probe_auroc": 0.8,
+    "require_both_dev_val_and_locked_test": true
+  },
+  "verified_supported_findings": [
+    "effusion",
+    "pneumothorax",
+    "pneumonia"
+  ],
+  "findings": {
+    "aortic_enlargement": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "border_probe_auroc 0.8603 > 0.80"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "border_probe_auroc 0.8649 > 0.80"
+      ],
+      "dev_val": {
+        "positives": 462,
+        "within_source_auroc": {
+          "vinbigdata": 0.9839
+        },
+        "pos_box_or_mask_dice": 0.8389,
+        "border_probe_auroc": 0.8603
+      },
+      "locked_test": {
+        "display_name": "Aortic enlargement",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 483,
+        "auroc": 0.9803,
+        "within_source_auroc": {
+          "vinbigdata": 0.9803
+        },
+        "auprc": 0.9285,
+        "pos_box_or_mask_dice": 0.8334,
+        "border_probe_test_auroc": 0.8649,
+        "border_shortcut_flagged": true
+      }
+    },
+    "atelectasis": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "positives 17 < 100",
+        "dice 0.4723 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "positives 30 < 100",
+        "dice 0.4925 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 17,
+        "within_source_auroc": {
+          "vinbigdata": 0.9717
+        },
+        "pos_box_or_mask_dice": 0.4723,
+        "border_probe_auroc": 0.5565
+      },
+      "locked_test": {
+        "display_name": "Atelectasis",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 30,
+        "auroc": 0.9727,
+        "within_source_auroc": {
+          "vinbigdata": 0.9727
+        },
+        "auprc": 0.4953,
+        "pos_box_or_mask_dice": 0.4925,
+        "border_probe_test_auroc": 0.5886,
+        "border_shortcut_flagged": false
+      }
+    },
+    "calcification": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "positives 70 < 100",
+        "dice 0.3198 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "positives 68 < 100",
+        "dice 0.2777 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 70,
+        "within_source_auroc": {
+          "vinbigdata": 0.9146
+        },
+        "pos_box_or_mask_dice": 0.3198,
+        "border_probe_auroc": 0.7401
+      },
+      "locked_test": {
+        "display_name": "Calcification",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 68,
+        "auroc": 0.9034,
+        "within_source_auroc": {
+          "vinbigdata": 0.9034
+        },
+        "auprc": 0.3103,
+        "pos_box_or_mask_dice": 0.2777,
+        "border_probe_test_auroc": 0.6325,
+        "border_shortcut_flagged": false
+      }
+    },
+    "cardiomegaly": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "border_probe_auroc 0.8520 > 0.80"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "border_probe_auroc 0.8506 > 0.80"
+      ],
+      "dev_val": {
+        "positives": 331,
+        "within_source_auroc": {
+          "vinbigdata": 0.9831
+        },
+        "pos_box_or_mask_dice": 0.8604,
+        "border_probe_auroc": 0.852
+      },
+      "locked_test": {
+        "display_name": "Cardiomegaly",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 351,
+        "auroc": 0.9852,
+        "within_source_auroc": {
+          "vinbigdata": 0.9852
+        },
+        "auprc": 0.9309,
+        "pos_box_or_mask_dice": 0.857,
+        "border_probe_test_auroc": 0.8506,
+        "border_shortcut_flagged": true
+      }
+    },
+    "consolidation": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "positives 46 < 100"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "positives 58 < 100"
+      ],
+      "dev_val": {
+        "positives": 46,
+        "within_source_auroc": {
+          "vinbigdata": 0.9762
+        },
+        "pos_box_or_mask_dice": 0.5663,
+        "border_probe_auroc": 0.6826
+      },
+      "locked_test": {
+        "display_name": "Consolidation",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 58,
+        "auroc": 0.9774,
+        "within_source_auroc": {
+          "vinbigdata": 0.9774
+        },
+        "auprc": 0.5959,
+        "pos_box_or_mask_dice": 0.6513,
+        "border_probe_test_auroc": 0.7906,
+        "border_shortcut_flagged": false
+      }
+    },
+    "ild": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "positives 60 < 100",
+        "dice 0.4605 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "positives 55 < 100"
+      ],
+      "dev_val": {
+        "positives": 60,
+        "within_source_auroc": {
+          "vinbigdata": 0.9564
+        },
+        "pos_box_or_mask_dice": 0.4605,
+        "border_probe_auroc": 0.7556
+      },
+      "locked_test": {
+        "display_name": "ILD (Interstitial Lung Disease)",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 55,
+        "auroc": 0.9673,
+        "within_source_auroc": {
+          "vinbigdata": 0.9673
+        },
+        "auprc": 0.6119,
+        "pos_box_or_mask_dice": 0.5324,
+        "border_probe_test_auroc": 0.7198,
+        "border_shortcut_flagged": false
+      }
+    },
+    "infiltration": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": true,
+      "dev_val_fail_reasons": [],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "positives 95 < 100"
+      ],
+      "dev_val": {
+        "positives": 101,
+        "within_source_auroc": {
+          "vinbigdata": 0.9751
+        },
+        "pos_box_or_mask_dice": 0.6054,
+        "border_probe_auroc": 0.7863
+      },
+      "locked_test": {
+        "display_name": "Infiltration",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 95,
+        "auroc": 0.9694,
+        "within_source_auroc": {
+          "vinbigdata": 0.9694
+        },
+        "auprc": 0.6386,
+        "pos_box_or_mask_dice": 0.5493,
+        "border_probe_test_auroc": 0.7687,
+        "border_shortcut_flagged": false
+      }
+    },
+    "lung_opacity": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "dice 0.4686 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "dice 0.4635 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 188,
+        "within_source_auroc": {
+          "vinbigdata": 0.957
+        },
+        "pos_box_or_mask_dice": 0.4686,
+        "border_probe_auroc": 0.7648
+      },
+      "locked_test": {
+        "display_name": "Lung Opacity",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 210,
+        "auroc": 0.9509,
+        "within_source_auroc": {
+          "vinbigdata": 0.9509
+        },
+        "auprc": 0.6521,
+        "pos_box_or_mask_dice": 0.4635,
+        "border_probe_test_auroc": 0.7748,
+        "border_shortcut_flagged": false
+      }
+    },
+    "nodule_mass": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "dice 0.3289 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "dice 0.3182 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 113,
+        "within_source_auroc": {
+          "vinbigdata": 0.9392
+        },
+        "pos_box_or_mask_dice": 0.3289,
+        "border_probe_auroc": 0.7327
+      },
+      "locked_test": {
+        "display_name": "Nodule / Mass",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 126,
+        "auroc": 0.9414,
+        "within_source_auroc": {
+          "vinbigdata": 0.9414
+        },
+        "auprc": 0.5437,
+        "pos_box_or_mask_dice": 0.3182,
+        "border_probe_test_auroc": 0.7576,
+        "border_shortcut_flagged": false
+      }
+    },
+    "other_lesion": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "dice 0.1761 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "dice 0.1853 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 147,
+        "within_source_auroc": {
+          "vinbigdata": 0.9064
+        },
+        "pos_box_or_mask_dice": 0.1761,
+        "border_probe_auroc": 0.776
+      },
+      "locked_test": {
+        "display_name": "Other lesion",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 182,
+        "auroc": 0.9047,
+        "within_source_auroc": {
+          "vinbigdata": 0.9047
+        },
+        "auprc": 0.4384,
+        "pos_box_or_mask_dice": 0.1853,
+        "border_probe_test_auroc": 0.7237,
+        "border_shortcut_flagged": false
+      }
+    },
+    "effusion": {
+      "passed_both_val_and_locked_test": true,
+      "passed_dev_val": true,
+      "dev_val_fail_reasons": [],
+      "passed_locked_test": true,
+      "locked_test_fail_reasons": [],
+      "dev_val": {
+        "positives": 155,
+        "within_source_auroc": {
+          "vinbigdata": 0.9806
+        },
+        "pos_box_or_mask_dice": 0.5888,
+        "border_probe_auroc": 0.7441
+      },
+      "locked_test": {
+        "display_name": "Pleural effusion",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 153,
+        "auroc": 0.9831,
+        "within_source_auroc": {
+          "vinbigdata": 0.9831
+        },
+        "auprc": 0.8731,
+        "pos_box_or_mask_dice": 0.6006,
+        "border_probe_test_auroc": 0.7683,
+        "border_shortcut_flagged": false
+      }
+    },
+    "pleural_thickening": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "dice 0.4041 < 0.5",
+        "border_probe_auroc 0.8094 > 0.80"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "dice 0.4078 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 305,
+        "within_source_auroc": {
+          "vinbigdata": 0.9506
+        },
+        "pos_box_or_mask_dice": 0.4041,
+        "border_probe_auroc": 0.8094
+      },
+      "locked_test": {
+        "display_name": "Pleural thickening",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 295,
+        "auroc": 0.9431,
+        "within_source_auroc": {
+          "vinbigdata": 0.9431
+        },
+        "auprc": 0.7126,
+        "pos_box_or_mask_dice": 0.4078,
+        "border_probe_test_auroc": 0.7918,
+        "border_shortcut_flagged": false
+      }
+    },
+    "pneumothorax": {
+      "passed_both_val_and_locked_test": true,
+      "passed_dev_val": true,
+      "dev_val_fail_reasons": [],
+      "passed_locked_test": true,
+      "locked_test_fail_reasons": [],
+      "dev_val": {
+        "positives": 375,
+        "within_source_auroc": {
+          "vinbigdata": 0.9011,
+          "siim_pneumo": 0.9353
+        },
+        "pos_box_or_mask_dice": 0.5107,
+        "border_probe_auroc": 0.5812
+      },
+      "locked_test": {
+        "display_name": "Pneumothorax",
+        "supervision_type": "pixel_mask_plus_bbox",
+        "test_total": 1565,
+        "test_positives": 353,
+        "auroc": 0.9493,
+        "within_source_auroc": {
+          "vinbigdata": 0.9833,
+          "siim_pneumo": 0.9475
+        },
+        "auprc": 0.8612,
+        "pos_box_or_mask_dice": 0.5191,
+        "border_probe_test_auroc": 0.5778,
+        "border_shortcut_flagged": false
+      }
+    },
+    "pulmonary_fibrosis": {
+      "passed_both_val_and_locked_test": false,
+      "passed_dev_val": false,
+      "dev_val_fail_reasons": [
+        "dice 0.4813 < 0.5"
+      ],
+      "passed_locked_test": false,
+      "locked_test_fail_reasons": [
+        "dice 0.4231 < 0.5"
+      ],
+      "dev_val": {
+        "positives": 242,
+        "within_source_auroc": {
+          "vinbigdata": 0.964
+        },
+        "pos_box_or_mask_dice": 0.4813,
+        "border_probe_auroc": 0.7776
+      },
+      "locked_test": {
+        "display_name": "Pulmonary fibrosis",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 2256,
+        "test_positives": 252,
+        "auroc": 0.9539,
+        "within_source_auroc": {
+          "vinbigdata": 0.9539
+        },
+        "auprc": 0.7537,
+        "pos_box_or_mask_dice": 0.4231,
+        "border_probe_test_auroc": 0.7405,
+        "border_shortcut_flagged": false
+      }
+    },
+    "pneumonia": {
+      "passed_both_val_and_locked_test": true,
+      "passed_dev_val": true,
+      "dev_val_fail_reasons": [],
+      "passed_locked_test": true,
+      "locked_test_fail_reasons": [],
+      "dev_val": {
+        "positives": 899,
+        "within_source_auroc": {
+          "rsna_pneumonia": 0.8976
+        },
+        "pos_box_or_mask_dice": 0.6449,
+        "border_probe_auroc": 0.6906
+      },
+      "locked_test": {
+        "display_name": "Pneumonia",
+        "supervision_type": "bbox_ellipse",
+        "test_total": 3972,
+        "test_positives": 876,
+        "auroc": 0.8966,
+        "within_source_auroc": {
+          "rsna_pneumonia": 0.8966
+        },
+        "auprc": 0.7223,
+        "pos_box_or_mask_dice": 0.6528,
+        "border_probe_test_auroc": 0.7099,
+        "border_shortcut_flagged": false
+      }
+    }
+  }
+}

@@ -1,0 +1,244 @@
+{
+  "split": "val",
+  "checkpoint": "convnext_tiny_fpn_chest15_512.pt",
+  "checkpoint_sha256": "2d232d1c0196e5dfad9571bbe22c827fbacbcdce59913d7d99c92d80c37dbb17",
+  "mapped_findings_count": 10,
+  "mapping": {
+    "atelectasis": [
+      "Atelectasis"
+    ],
+    "cardiomegaly": [
+      "Cardiomegaly"
+    ],
+    "effusion": [
+      "Effusion"
+    ],
+    "infiltration": [
+      "Infiltration"
+    ],
+    "nodule_mass": [
+      "Mass",
+      "Nodule"
+    ],
+    "pneumonia": [
+      "Pneumonia"
+    ],
+    "pneumothorax": [
+      "Pneumothorax"
+    ],
+    "consolidation": [
+      "Consolidation"
+    ],
+    "pleural_thickening": [
+      "Pleural_Thickening"
+    ],
+    "pulmonary_fibrosis": [
+      "Fibrosis"
+    ]
+  },
+  "unmapped_nih_labels": {
+    "Edema": "No dedicated pulmonary edema head in ChestHD.",
+    "Emphysema": "No emphysema / hyperinflation head in ChestHD.",
+    "Hernia": "No hiatal/diaphragmatic hernia head in ChestHD."
+  },
+  "unmapped_chest_hd_findings": {
+    "aortic_enlargement": "Not annotated in NIH ChestX-ray14.",
+    "calcification": "Not annotated in NIH ChestX-ray14.",
+    "ild": "Broader interstitial lung disease category than NIH 'Fibrosis' alone.",
+    "other_lesion": "Residual catch-all category in VinBigData with no NIH counterpart.",
+    "lung_opacity": "Super-class umbrella term not directly annotated as a standalone NIH label."
+  },
+  "metrics": {
+    "atelectasis": {
+      "display_name": "Atelectasis",
+      "nih_source_labels": [
+        "Atelectasis"
+      ],
+      "n_images": 17222,
+      "n_positives": 1535,
+      "auroc": 0.6917,
+      "auroc_95ci": [
+        0.6741,
+        0.7087
+      ],
+      "auprc": 0.1362,
+      "auprc_95ci": [
+        0.1225,
+        0.15
+      ],
+      "brier_raw": 0.0951
+    },
+    "cardiomegaly": {
+      "display_name": "Cardiomegaly",
+      "nih_source_labels": [
+        "Cardiomegaly"
+      ],
+      "n_images": 17222,
+      "n_positives": 344,
+      "auroc": 0.7988,
+      "auroc_95ci": [
+        0.7691,
+        0.8258
+      ],
+      "auprc": 0.0932,
+      "auprc_95ci": [
+        0.071,
+        0.1262
+      ],
+      "brier_raw": 0.2149
+    },
+    "effusion": {
+      "display_name": "Pleural effusion",
+      "nih_source_labels": [
+        "Effusion"
+      ],
+      "n_images": 17222,
+      "n_positives": 1695,
+      "auroc": 0.8509,
+      "auroc_95ci": [
+        0.8383,
+        0.8634
+      ],
+      "auprc": 0.3923,
+      "auprc_95ci": [
+        0.3507,
+        0.4328
+      ],
+      "brier_raw": 0.1243
+    },
+    "infiltration": {
+      "display_name": "Infiltration",
+      "nih_source_labels": [
+        "Infiltration"
+      ],
+      "n_images": 17222,
+      "n_positives": 2648,
+      "auroc": 0.6331,
+      "auroc_95ci": [
+        0.6139,
+        0.6507
+      ],
+      "auprc": 0.2834,
+      "auprc_95ci": [
+        0.2581,
+        0.3092
+      ],
+      "brier_raw": 0.1863
+    },
+    "nodule_mass": {
+      "display_name": "Nodule / Mass",
+      "nih_source_labels": [
+        "Mass",
+        "Nodule"
+      ],
+      "n_images": 17222,
+      "n_positives": 1554,
+      "auroc": 0.7405,
+      "auroc_95ci": [
+        0.7178,
+        0.7611
+      ],
+      "auprc": 0.3149,
+      "auprc_95ci": [
+        0.2776,
+        0.3552
+      ],
+      "brier_raw": 0.1119
+    },
+    "pneumonia": {
+      "display_name": "Pneumonia",
+      "nih_source_labels": [
+        "Pneumonia"
+      ],
+      "n_images": 17222,
+      "n_positives": 158,
+      "auroc": 0.7299,
+      "auroc_95ci": [
+        0.6835,
+        0.7699
+      ],
+      "auprc": 0.0248,
+      "auprc_95ci": [
+        0.0188,
+        0.0351
+      ],
+      "brier_raw": 0.2106
+    },
+    "pneumothorax": {
+      "display_name": "Pneumothorax",
+      "nih_source_labels": [
+        "Pneumothorax"
+      ],
+      "n_images": 17222,
+      "n_positives": 442,
+      "auroc": 0.8254,
+      "auroc_95ci": [
+        0.7953,
+        0.8535
+      ],
+      "auprc": 0.1797,
+      "auprc_95ci": [
+        0.1381,
+        0.2394
+      ],
+      "brier_raw": 0.0469
+    },
+    "consolidation": {
+      "display_name": "Consolidation",
+      "nih_source_labels": [
+        "Consolidation"
+      ],
+      "n_images": 17222,
+      "n_positives": 538,
+      "auroc": 0.8024,
+      "auroc_95ci": [
+        0.7836,
+        0.8221
+      ],
+      "auprc": 0.1057,
+      "auprc_95ci": [
+        0.0875,
+        0.1277
+      ],
+      "brier_raw": 0.1317
+    },
+    "pleural_thickening": {
+      "display_name": "Pleural thickening",
+      "nih_source_labels": [
+        "Pleural_Thickening"
+      ],
+      "n_images": 17222,
+      "n_positives": 413,
+      "auroc": 0.7267,
+      "auroc_95ci": [
+        0.6999,
+        0.7528
+      ],
+      "auprc": 0.0718,
+      "auprc_95ci": [
+        0.0549,
+        0.0954
+      ],
+      "brier_raw": 0.128
+    },
+    "pulmonary_fibrosis": {
+      "display_name": "Pulmonary fibrosis",
+      "nih_source_labels": [
+        "Fibrosis"
+      ],
+      "n_images": 17222,
+      "n_positives": 231,
+      "auroc": 0.6695,
+      "auroc_95ci": [
+        0.6294,
+        0.7094
+      ],
+      "auprc": 0.0398,
+      "auprc_95ci": [
+        0.028,
+        0.0598
+      ],
+      "brier_raw": 0.1226
+    }
+  }
+}

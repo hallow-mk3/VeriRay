@@ -1,5 +1,5 @@
 {
-  "config_path": "C:\\Users\\swast\\VeriRay\\configs\\frozen.yaml",
-  "sha256": "92ffb2dd16d4f83fabbe4f2e397d9af4d30f27761fc8033c52d371dd8fb15fe2",
+  "config_path": "configs/frozen.yaml",
+  "sha256": "f4185f8fb081cba4b35b50abee7739f69d9c6eed6ed874d2eb1808fcf57531ce",
   "fitted_split": "val"
 }

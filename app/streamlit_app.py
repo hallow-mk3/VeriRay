@@ -34,7 +34,7 @@ from veriray.vlm import MedGemmaRunner, VLMConfig, VLMError, box_mask_iou, run_g
 st.set_page_config(page_title="VeriRay (research prototype)", layout="wide")
 st.title("VeriRay — Local Verification Judge")
 st.warning(BEHAVIOUR_NOTICE)
-st.caption("Finding: pneumothorax. Runs entirely offline on this machine; images are held in memory only.")
+st.caption("Runs entirely offline on this machine; uploaded images and live session state are held in memory only.")
 
 if st.button("Clear session"):
     st.session_state.clear()
@@ -211,16 +211,20 @@ if mode.startswith("Evaluation"):
     chest_hd_path = ROOT / "models" / "CHEST_HD_CHECKPOINT.json"
     if chest_hd_path.is_file():
         chd = json.loads(chest_hd_path.read_text(encoding="utf-8"))
-        st.subheader(f"Chest HD 512x512 16-finding benchmark (`{chd.get('filename')}`)")
-        st.metric("Macro Validation AUROC (16 findings)", f"{chd.get('best_macro_val_auroc', 0.0):.4f}")
+        n_f = len(chd.get("findings", []))
+        st.subheader(f"Chest HD 512x512 {n_f}-finding dev_val summary (`{chd.get('filename')}`)")
+        st.caption(chd.get("val_note", "Dev-set validation metrics only; locked test untouched."))
+        st.metric(f"Macro Dev-Val AUROC ({n_f} findings)", f"{chd.get('best_macro_val_auroc', 0.0):.4f}")
         vm = chd.get("val_metrics", {})
         rows_chd = [
             {
                 "finding": k,
                 "display_name": v.get("display_name", k),
-                "val_auroc": v.get("auroc"),
-                "val_auprc": v.get("auprc"),
-                "mask_dice": v.get("pos_mask_dice"),
+                "supervision": v.get("supervision_type", "pixel_mask" if k == "pneumothorax" else "bbox_ellipse"),
+                "dev_val_auroc": v.get("auroc"),
+                "dev_val_auprc": v.get("auprc"),
+                "box_or_mask_dice": v.get("pos_box_or_mask_dice", v.get("pos_mask_dice")),
+                "border_probe_auroc": v.get("border_probe_val_auroc"),
                 "val_positives": v.get("val_positives"),
             }
             for k, v in vm.items()
@@ -232,11 +236,14 @@ if mode.startswith("Evaluation"):
     brain_path = ROOT / "models" / "BRAIN_MRI_CHECKPOINT.json"
     if brain_path.is_file():
         bm = json.loads(brain_path.read_text(encoding="utf-8"))
-        st.subheader(f"Brain MRI benchmark (`{bm.get('filename')}`)")
+        st.subheader(f"Brain MRI within-source dev_val summary (`{bm.get('filename')}`)")
+        st.caption(bm.get("note", "Dev-set validation metrics only; locked test untouched."))
+        wi = bm.get("headline_within_isles_stroke_vs_normal", {})
+        w2 = bm.get("within_2d_4class", {})
         bc1, bc2, bc3 = st.columns(3)
-        bc1.metric("5-class accuracy (Tumor + Stroke)", f"{bm.get('best_5cls_accuracy', bm.get('best_test_accuracy', 0.0)):.2%}")
-        bc2.metric("4-class benchmark accuracy", f"{bm.get('best_test_accuracy', 0.0):.2%}")
-        bc3.metric("Lesion segmentation Dice", f"{bm.get('lesion_segmentation_dice', 0.0):.4f}")
+        bc1.metric("Within-ISLES Stroke AUROC (dev_val)", f"{wi.get('auroc_p_stroke', 0.0):.4f}")
+        bc2.metric("Within-2D 4-class acc (dev_val)", f"{w2.get('accuracy_4cls', bm.get('within_2d_4cls_dev_val_accuracy', 0.0)):.2%}")
+        bc3.metric("Lesion segmentation Dice (dev_val)", f"{bm.get('overall_lesion_segmentation_dice', bm.get('lesion_segmentation_dice', 0.0)):.4f}")
 
     st.subheader("Verdict counts & latencies (ms)")
     st.json({"verdict_counts": pack.get("verdict_counts", {}), "latencies": pack.get("latencies", {})})
@@ -255,11 +262,7 @@ def _load_reader(finding_id: str = "pneumothorax"):
         return None, exc
 
 
-_avail_findings = (
-    list(SUPPORTED_FINDINGS)
-    if ChestHDReaderAdapter.is_available(ROOT / "models")
-    else ["pneumothorax", "effusion", "cardiomegaly"]
-)
+_avail_findings = list(SUPPORTED_FINDINGS)
 target_finding = st.selectbox(
     "Target chest finding",
     _avail_findings,
@@ -297,41 +300,44 @@ status_bar = st.progress(0, text="Processing case queue...")
 for idx, upl in enumerate(uploads):
     status_bar.progress((idx + 1) / len(uploads), text=f"Processing case {idx + 1}/{len(uploads)}: {upl.name}")
 
-    # ── Modality mismatch guard ──────────────────────────────────────────────
-    # Detect when a Brain MRI is uploaded to the Chest X-ray queue and show
-    # a clear redirect instead of a confusing INDETERMINATE verdict.
-    try:
-        from PIL import Image as _PILImage
-        import io as _io
-        _raw = np.asarray(
-            _PILImage.open(_io.BytesIO(upl.getvalue())).convert("L"),
-            dtype=np.float32,
-        )
-        _guess = guess_modality(_raw)
-        if _guess.is_brain_mri_suspected and _guess.confidence >= 0.60:
-            st.warning(
-                f"🧠 **Wrong mode detected for `{upl.name}`**  \n"
-                "This image looks like a **Brain MRI** (not a chest X-ray).  \n"
-                "👉 Switch to **Brain MRI (4-class Tumor + Grad-CAM++ + Counterfactual)** "
-                "mode above and re-upload for correct analysis.  \n"
-                f"*(Modality heuristic confidence: {_guess.confidence:.0%} — "
-                "not a diagnosis; switch modes and let the Brain MRI reader decide.)*"
-            )
-            # Still show the signals in an expander for transparency
-            with st.expander("Modality detection signals (debug)"):
-                st.json({k: round(v, 4) for k, v in _guess.signals.items()})
-                st.caption(_guess.reason)
-            continue  # skip running the Chest X-ray pipeline on this file
-    except Exception:  # noqa: BLE001 — modality check must never crash the queue
-        pass
+    # ── Modality mismatch guard (bounded against image decompression bombs) ──
+    raw_upl_bytes = upl.getvalue()
+    if len(raw_upl_bytes) <= 50 * 1024 * 1024:
+        try:
+            from PIL import Image as _PILImage
+            import io as _io
+            with _PILImage.open(_io.BytesIO(raw_upl_bytes)) as _im:
+                _w, _h = _im.size
+                if 0 < _w <= 8192 and 0 < _h <= 8192 and (_w * _h) <= 8192 * 8192:
+                    _im.load()
+                    _raw = np.asarray(_im.convert("L"), dtype=np.float32)
+                else:
+                    _raw = None
+            if _raw is not None:
+                _guess = guess_modality(_raw)
+                if _guess.is_brain_mri_suspected and _guess.confidence >= 0.60:
+                    st.warning(
+                        f"🧠 **Wrong mode detected for `{upl.name}`**  \n"
+                        "This image looks like a **Brain MRI** (not a chest X-ray).  \n"
+                        "👉 Switch to **Brain MRI (4-class Tumor + Grad-CAM++ + Counterfactual)** "
+                        "mode above and re-upload for correct analysis.  \n"
+                        f"*(Modality heuristic confidence: {_guess.confidence:.0%} — "
+                        "not a diagnosis; switch modes and let the Brain MRI reader decide.)*"
+                    )
+                    with st.expander("Modality detection signals (debug)"):
+                        st.json({k: round(v, 4) for k, v in _guess.signals.items()})
+                        st.caption(_guess.reason)
+                    continue
+        except Exception:  # noqa: BLE001 — modality check must never crash the queue
+            pass
     # ────────────────────────────────────────────────────────────────────────
 
     r_item = run_verification(
-        upl.getvalue(),
+        raw_upl_bytes,
         filename_hint=upl.name,
         reader=reader,
         models_dir=ROOT / "models",
-        manifest_dir=ROOT / "artifacts" / "tmp" / "runs",
+        manifest_dir=None,
         locator_cfg=loc_cfg,
         judge_cfg=judge_cfg,
         finding_id=target_finding,
@@ -387,7 +393,10 @@ if use_medgemma and res.display_image is not None:
                 iou_txt = ""
                 if c.box_xyxy is not None and res.locator is not None:
                     iou_txt = f" · IoU with Grad-CAM++ mask: {box_mask_iou(res.locator.target_mask, c.box_xyxy):.3f}"
-                tag = "verified target finding" if c.is_verifiable_finding else "mentioned by the model, not verified"
+                c_norm = c.finding.strip().lower().replace(" ", "_").replace("/", "_")
+                if c_norm == "pleural_effusion":
+                    c_norm = "effusion"
+                tag = "verified target finding" if (c.is_verifiable_finding and c_norm == target_finding) else "mentioned by the model, not verified"
                 s_finding = sanitize_for_prompt(c.finding)
                 s_status = sanitize_for_prompt(c.status)
                 s_region = sanitize_for_prompt(c.region_description)
@@ -419,21 +428,24 @@ if res.gate is not None:
         st.write("Quality flags: " + ", ".join(flagged))
 
 if res.reader is not None and res.locator is not None and res.display_image is not None:
+    target_disp = CHEST_HD_DISPLAY_NAMES.get(target_finding, target_finding.replace("_", " ").capitalize())
+    disp_px = int(res.display_image.shape[0])
+    score_lbl = SCORE_LABEL if target_finding == "pneumothorax" else f"Model score (uncalibrated {target_disp} output of the Reader)"
     c1, c2, c3 = st.columns(3)
-    c1.image(res.display_image.astype("uint8"), caption="Original (224px model-space view)", clamp=True)
+    c1.image(res.display_image.astype("uint8"), caption=f"Original ({disp_px}px model-space view)", clamp=True)
     c2.image(
         overlay_heatmap(res.display_image, res.locator.heatmap),
-        caption="Grad-CAM++ heatmap overlay (candidate region only)",
+        caption="Spatial locator heatmap overlay (candidate region only)",
     )
     c3.image((res.locator.target_mask * 255).astype("uint8"), caption="Candidate mask")
 
     st.subheader("Reader")
     if res.reader.score_calibrated_optional is not None:
         m1, m2 = st.columns(2)
-        m1.metric(SCORE_LABEL, f"{res.reader.score_raw:.4f}")
+        m1.metric(score_lbl, f"{res.reader.score_raw:.4f}")
         m2.metric("Platt-calibrated model score (fitted on val; not a diagnosis)", f"{res.reader.score_calibrated_optional:.4f}")
     else:
-        st.metric(SCORE_LABEL, f"{res.reader.score_raw:.4f}")
+        st.metric(score_lbl, f"{res.reader.score_raw:.4f}")
     target_thresh = judge_cfg.min_reader_score if judge_cfg.min_reader_score > 0 else 0.5
     screening = summarize_reader_findings(res.reader, target_threshold=target_thresh, other_threshold=0.5)
     if screening.all_scores_low:
@@ -444,10 +456,10 @@ if res.reader is not None and res.locator is not None and res.display_image is n
     elif not screening.target_flagged and screening.flagged_other_findings:
         flagged_txt = ", ".join(f"{lbl} ({val:.3f})" for lbl, val in screening.flagged_other_findings)
         st.warning(
-            f"Pneumothorax score is below threshold, while other unverified Reader label(s) scored >= 0.50: {flagged_txt}"
+            f"{target_disp} score is below threshold, while other unverified Reader label(s) scored >= 0.50: {flagged_txt}"
         )
     with st.expander("All monitored Reader scores (uncalibrated)"):
-        all_scores = {"Pneumothorax": round(res.reader.score_raw, 4)}
+        all_scores = {target_disp: round(res.reader.score_raw, 4)}
         for lbl, val in sorted(res.reader.unrelated_scores.items(), key=lambda kv: kv[1], reverse=True):
             all_scores[lbl] = round(float(val), 4)
         st.json(all_scores)
@@ -468,14 +480,14 @@ if res.judge_outcome is not None and res.judge_outcome.primary_target_edit is no
     labelled_edit = render_labelled(edit.edited_image, scale=2)
     if view_choice == "Side-by-side":
         col_a, col_b = st.columns(2)
-        col_a.image(res.display_image.astype("uint8"), caption="Original (224px)", clamp=True)
+        col_a.image(res.display_image.astype("uint8"), caption=f"Original ({int(res.display_image.shape[0])}px)", clamp=True)
         col_b.image(labelled_edit, caption=f"{edit.fill_method} — {SYNTHETIC_COUNTERFACTUAL_LABEL}")
     else:
         show_cf = st.toggle("Show synthetic counterfactual", value=True)
         if show_cf:
             st.image(labelled_edit, caption=f"{edit.fill_method} — {SYNTHETIC_COUNTERFACTUAL_LABEL}")
         else:
-            st.image(res.display_image.astype("uint8"), caption="Original (224px)", clamp=True)
+            st.image(res.display_image.astype("uint8"), caption=f"Original ({int(res.display_image.shape[0])}px)", clamp=True)
 
     if (ROOT / "models" / "UNET_CHECKPOINT.json").is_file() and res.locator is not None:
         with st.expander("Gated-Convolution U-Net counterfactual comparison (optional)"):

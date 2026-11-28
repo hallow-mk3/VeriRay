@@ -1,0 +1,117 @@
+# Verifiable Finding Admission Rule (Evaluated on Held-Out Validation Split Only)
+# Rule:
+#   1. val_positives >= 100
+#   2. pos_mask_dice >= 0.50
+#   3. unresolved_source_confound == false
+
+rule:
+  min_val_positives: 100
+  min_pos_mask_dice: 0.50
+  require_no_unresolved_source_confound: true
+  evaluated_split: val
+  checkpoint_id: convnext_tiny_fpn_chest16_512@sha256:18fe69565a47
+
+verifiable_chest_findings:
+  - aortic_enlargement
+  - cardiomegaly
+  - effusion
+  - infiltration
+  - pneumonia
+
+chest_findings_audit:
+  aortic_enlargement:
+    val_positives: 462
+    pos_mask_dice: 0.8449
+    unresolved_source_confound: false
+    verifiable: true
+    notes: "Single source (vinbigdata: 462 pos / 1828 neg in val); within-source AUROC 0.9859."
+  cardiomegaly:
+    val_positives: 331
+    pos_mask_dice: 0.8548
+    unresolved_source_confound: false
+    verifiable: true
+    notes: "Single source (vinbigdata: 331 pos / 1959 neg in val); within-source AUROC 0.9844."
+  effusion:
+    val_positives: 155
+    pos_mask_dice: 0.6008
+    unresolved_source_confound: false
+    verifiable: true
+    notes: "Single source (vinbigdata: 155 pos / 2135 neg in val); within-source AUROC 0.9790."
+  infiltration:
+    val_positives: 101
+    pos_mask_dice: 0.5788
+    unresolved_source_confound: false
+    verifiable: true
+    notes: "Single source (vinbigdata: 101 pos / 2189 neg in val); within-source AUROC 0.9734."
+  pneumonia:
+    val_positives: 899
+    pos_mask_dice: 0.6482
+    unresolved_source_confound: false
+    verifiable: true
+    notes: "Single source (rsna_pneumonia: 899 pos / 3038 neg in val); within-source AUROC 0.9023."
+  lung_opacity:
+    val_positives: 1087
+    pos_mask_dice: 0.6142
+    unresolved_source_confound: true
+    verifiable: false
+    notes: "Cross-source prevalence shift between rsna_pneumonia (22.8% pos) and vinbigdata (8.2% pos); border probe separates vinbigdata at 85.0% recall."
+  pneumothorax:
+    val_positives: 375
+    pos_mask_dice: 0.5137
+    unresolved_source_confound: true
+    verifiable: false
+    notes: "96.5% of val positives from siim_pneumo (22.7% prev) vs 64.8% of val negatives from vinbigdata (0.57% prev), inflating pooled AUROC (0.9710) above within-source AUROCs (0.9370 SIIM, 0.9242 VinBigData)."
+  consolidation:
+    val_positives: 46
+    pos_mask_dice: 0.5626
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_val_positives (46 < 100)."
+  atelectasis:
+    val_positives: 17
+    pos_mask_dice: 0.4304
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_val_positives (17 < 100) and min_pos_mask_dice (0.4304 < 0.50)."
+  calcification:
+    val_positives: 70
+    pos_mask_dice: 0.3058
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_val_positives (70 < 100) and min_pos_mask_dice (0.3058 < 0.50)."
+  ild:
+    val_positives: 60
+    pos_mask_dice: 0.4456
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_val_positives (60 < 100) and min_pos_mask_dice (0.4456 < 0.50)."
+  nodule_mass:
+    val_positives: 113
+    pos_mask_dice: 0.3568
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_pos_mask_dice (0.3568 < 0.50)."
+  other_lesion:
+    val_positives: 147
+    pos_mask_dice: 0.1855
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_pos_mask_dice (0.1855 < 0.50)."
+  pleural_thickening:
+    val_positives: 305
+    pos_mask_dice: 0.4140
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_pos_mask_dice (0.4140 < 0.50)."
+  pulmonary_fibrosis:
+    val_positives: 242
+    pos_mask_dice: 0.4754
+    unresolved_source_confound: false
+    verifiable: false
+    notes: "Fails min_pos_mask_dice (0.4754 < 0.50)."
+  tuberculosis:
+    val_positives: 119
+    pos_mask_dice: null
+    unresolved_source_confound: true
+    verifiable: false
+    notes: "Fails mask_dice (no pixel/box masks) and severe sub-source confound inside tb_cxr (88.4% of Normal from RSNA vs 43.7% of TB from Belarus; border-only probe achieves 97.5% acc / 0.9937 AUROC; 196/520 val Normals match RSNA train dHash)."

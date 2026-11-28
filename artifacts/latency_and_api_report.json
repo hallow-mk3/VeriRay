@@ -1,48 +1,48 @@
 {
-  "hardware": "local workstation (CPU inference for DenseNet-121 + PSPNet)",
+  "hardware": "local workstation (CUDA inference for convnext_tiny_fpn_chest15_512_deconfounded@sha256:2d232d1c0196 + PSPNet)",
   "cold_start_ms": {
-    "reader_load": 164.67,
-    "lung_segmenter_load": 491.62,
-    "total_cold_start": 656.29
+    "reader_load": 353.14,
+    "lung_segmenter_load": 517.56,
+    "total_cold_start": 870.7
   },
   "stage_latencies": {
     "gate": {
       "count": 10.0,
-      "p50_ms": 1.9738499977393076,
-      "p95_ms": 3.9317849999861174
+      "p50_ms": 7.001800000125513,
+      "p95_ms": 10.337249999793125
     },
     "judge": {
       "count": 10.0,
-      "p50_ms": 955.4958499975328,
-      "p95_ms": 1052.4017699994147
+      "p50_ms": 843.9187499998297,
+      "p95_ms": 953.5773149997112
     },
     "locator": {
       "count": 10.0,
-      "p50_ms": 29.45594999982859,
-      "p95_ms": 41.004479999719464
+      "p50_ms": 26.771499999995285,
+      "p95_ms": 201.03116499999453
     },
     "reader": {
       "count": 10.0,
-      "p50_ms": 29.441200000292156,
-      "p95_ms": 43.158579998271286
+      "p50_ms": 13.2183000000623,
+      "p95_ms": 1008.5869949995393
     },
     "reader_load": {
       "count": 10.0,
-      "p50_ms": 0.00019999788491986692,
-      "p95_ms": 0.00025499994080746536
+      "p50_ms": 0.00020000015865662135,
+      "p95_ms": 0.0004549998266156762
     },
     "end_to_end": {
       "count": 10.0,
-      "p50_ms": 1014.8443500002031,
-      "p95_ms": 1133.1073499948616
+      "p50_ms": 889.6191999997427,
+      "p95_ms": 2168.910599999706
     }
   },
   "api_load_and_fault_test": {
     "total_load_requests": 10,
     "http_error_rate": 0.0,
     "schema_valid_rate": 1.0,
-    "p50_ms": 1173.0764000003546,
-    "p95_ms": 2599.7594349990322,
+    "p50_ms": 4.517599999417143,
+    "p95_ms": 16.147835000128897,
     "injected_faults_passed": 2,
     "injected_faults_total": 2
   },

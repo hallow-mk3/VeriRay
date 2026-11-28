@@ -1,0 +1,107 @@
+{
+  "manifest_file": "data/manifests/brain_mri_leakage_aware_manifest.csv",
+  "manifest_sha256": "2b210d6fd9bb9e28d682548ad3a0d2d1851b60c2d119adf25c79e7062fcfc125",
+  "kaggle_testing_folder_read": false,
+  "dropped_synthetic_tr_aug_copies": 100,
+  "total_rows": 9447,
+  "unique_groups_by_split": {
+    "train": 870,
+    "val": 197,
+    "test": 197
+  },
+  "counts_by_split_class_source": {
+    "train": {
+      "glioma@brain_mri_2d": 995,
+      "glioma@brats2020": 1284,
+      "ischemic_stroke@isles2022": 618,
+      "meningioma@brain_mri_2d": 508,
+      "notumor@brain_mri_2d": 1039,
+      "notumor@brats2020": 846,
+      "notumor@isles2022": 523,
+      "pituitary@brain_mri_2d": 808
+    },
+    "test": {
+      "glioma@brain_mri_2d": 190,
+      "glioma@brats2020": 294,
+      "ischemic_stroke@isles2022": 157,
+      "meningioma@brain_mri_2d": 149,
+      "notumor@brain_mri_2d": 181,
+      "notumor@brats2020": 196,
+      "notumor@isles2022": 133,
+      "pituitary@brain_mri_2d": 78
+    },
+    "val": {
+      "glioma@brain_mri_2d": 241,
+      "glioma@brats2020": 294,
+      "ischemic_stroke@isles2022": 131,
+      "meningioma@brain_mri_2d": 182,
+      "notumor@brain_mri_2d": 180,
+      "notumor@brats2020": 196,
+      "notumor@isles2022": 112,
+      "pituitary@brain_mri_2d": 112
+    }
+  },
+  "border_probe_3way_chance": 0.3333,
+  "border_probe_before_canonical_8pct": {
+    "val_acc": 0.7005,
+    "cm": [
+      [
+        116,
+        3,
+        0
+      ],
+      [
+        0,
+        114,
+        0
+      ],
+      [
+        0,
+        106,
+        25
+      ]
+    ]
+  },
+  "border_probe_after_canonical_8pct_outer_frame": {
+    "val_acc": 0.3269,
+    "cm": [
+      [
+        119,
+        0,
+        0
+      ],
+      [
+        114,
+        0,
+        0
+      ],
+      [
+        131,
+        0,
+        0
+      ]
+    ],
+    "note": "Outer 8% frame/background is identically zeroed outside canonical ellipse (rx=ry=0.41*256), eliminating frame/padding cues."
+  },
+  "parenchymal_rim_probe_after_canonical_14pct": {
+    "val_acc": 0.7885,
+    "cm": [
+      [
+        108,
+        2,
+        9
+      ],
+      [
+        1,
+        91,
+        22
+      ],
+      [
+        6,
+        37,
+        88
+      ]
+    ],
+    "note": "Inner 14% cortical strip retains intrinsic MRI sequence/voxel-resolution differences (DWI vs T1ce); therefore ONLY within-source metrics (Within-ISLES, Within-BraTS, Within-2D) are valid headline metrics."
+  }
+}

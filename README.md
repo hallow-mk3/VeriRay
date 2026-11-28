@@ -1,51 +1,60 @@
-﻿# VeriRay (Version 2.0 — Research Prototype)
+# VeriRay (Version 2.0 — Research Prototype)
 
 > **IMPORTANT: Research and competition prototype only. Not for diagnosis, triage, treatment or clinical use.**
 
-VeriRay tests whether a chest X-ray classifier's prediction for **pneumothorax** is sensitive to a proposed image region under a documented perturbation protocol, matched comparison regions, integrity checks, and uncertainty-aware abstention. It does not prove that a region contains disease or that a diagnosis is correct.
+VeriRay stress-tests whether a medical imaging classifier's prediction is sensitive to a proposed image region under a documented perturbation protocol, matched comparison regions, integrity checks, and uncertainty-aware abstention. It does not prove that a region contains disease or that a diagnosis is correct.
 
 ## Non-Negotiable Constraints (Blueprint v2.0)
-- **Single Finding:** `pneumothorax` only.
+- **Verified Thoracic Findings (`SUPPORTED_FINDINGS`):** Restricted strictly to the **3 findings** that passed the frozen admission rule (`positives >= 100`, `box/mask Dice >= 0.50`, `no cross-source confound`, and `border_probe_auroc <= 0.80`) on **both** `dev_val` and `locked_test`: `pneumothorax`, `effusion`, and `pneumonia`. (Unverified heads remain excluded from verification contracts; `tuberculosis` was dropped entirely due to severe sub-source framing confound.)
 - **Allowed Verdicts Only:** `MODEL-SUPPORTED`, `NOT SUPPORTED`, `SHORTCUT RISK`, `INDETERMINATE`. Never `PROVEN`, `DISEASE CONFIRMED`, `NORMAL`, `CLEAR`, `RULED OUT`, or diagnostic/triage/urgency language.
-- **Local / Offline Only:** Zero patient images or metadata are sent to external APIs.
+- **Local / Offline Only:** Zero patient images or metadata are sent to external APIs; live uploads and NIfTI volumes are decoded strictly in memory.
 - **Fail Closed:** Any input, localization, reconstruction, stability, or runtime failure returns `INDETERMINATE` with explicit machine-readable reason codes.
 - **Exact Outside-Mask Pixel Preservation:** Every synthetic edit preserves outside-mask pixels identically and carries `SYNTHETIC COUNTERFACTUAL — NOT A REAL SCAN`.
-- **Patient-Level Splits:** Locked test set remains untouched during model, preprocessing, and threshold selection.
+- **De-Confounded Patient/Cluster Splits:** Cluster-grouped (`dHash` + `32×32` cosine) chest splits and PID/cluster-grouped brain splits keep locked `test` untouched during model, preprocessing, and threshold selection.
 
 ## Repository Layout (Appendix B)
 ```text
 veriray/
-  app/             # Streamlit UI
-  api/             # FastAPI REST service (GET /health, POST /verify, POST /verify-batch, POST /chat)
-  configs/         # model, preprocessing, Judge and threshold configs
-  data/manifests/  # split, label, source and capture manifests
-  models/          # gate, reader, locator, eraser checkpoints
-  src/veriray/     # contracts, gate, reader, locator, eraser, controls, judge, pipeline, explainer, verifier, safety
-  eval/            # metrics, risk_coverage, ablations, robustness, load_test
-  redteam/         # attack suites and runners
-  tests/           # unit, integration, leakage and fail-closed tests
-  docs/            # protocol, model card, data card, ethics, demo
-  artifacts/       # versioned plots, configs and approved demo outputs
+  app/             # Streamlit UI (Chest X-ray Judge + Brain MRI explorer + Evidence Pack)
+  api/             # FastAPI REST service (GET /health, POST /verify, POST /verify-batch, POST /verify-brain, POST /chat)
+  configs/         # frozen Judge/Locator config (frozen.yaml) + frozen admission rule (verifiable.yaml)
+  data/manifests/  # split audit JSONs and SHA-256 digests (large CSV manifests gitignored)
+  models/          # SHA-256-verified local checkpoints (ChestHD 512px, BrainHD 256px, PSPNet, Gated U-Net, MedGemma)
+  src/veriray/     # contracts, gate, reader, chest_hd, brain_mri, locator, eraser, unet_eraser, controls, judge, pipeline, explainer, verifier, safety, vlm
+  eval/            # metrics, risk_coverage, ablations, boundary_test, shortcut_audit, load_test
+  redteam/         # primary (150 attacks) and independent audit (130 attacks) suites & runners
+  tests/           # 188 unit, integration, security, and fail-closed tests
+  docs/            # protocol, model card, data card, claims & demo policy
+  artifacts/       # locked-test evidence packs, risk-coverage plots, demo cases, latency/boundary/red-team reports
   README.md
   requirements.txt
 ```
 
-## Full Pipeline Status (implemented and evaluated)
-Full pipeline is implemented and evaluated on the locked NIH test split (`artifacts/eval_test_locked/test_evidence_pack.json`):
+## Full Pipeline Status (Implemented & Evaluated on Locked Test Splits)
+**Gate → 512×512 ConvNeXt-Tiny + FPN Reader/Locator → Eraser (`telea`, `gaussian_blur`, `mean_fill`, optional `gated_unet`) + Matched Controls (`K=19`) → Verification Judge → Grounded Explainer + Claim Verifier + Safety Guardrails**
 
-**Gate → Reader → Grad-CAM++ Locator → Eraser (3 methods) + Matched Controls (K=19) → Judge → Grounded Explainer + Claim Verifier + Safety guardrails**
-
-All components (`gate.py`, `reader.py`, `locator.py`, `eraser.py`, `controls.py`, `judge.py`, `pipeline.py`, `explainer.py`, `verifier.py`, `safety.py`) are present and tested.
+Measured locked-test highlights (`artifacts/eval_test_locked/`):
+- **Chest X-Ray Full Judge (`test_evidence_pack.json`, `n=445` zero-shot NIH locked test):**
+  - Reader AUROC `0.8941` (`AUPRC 0.9062`, `Brier 0.1402`).
+  - Full Judge achieved **98.08% precision** (`51/52`, `95% CI [0.9394, 1.0000]`) at **11.69% coverage** vs. **96.15%** (`50/52`, `95% CI [0.9012, 1.0000]`) for Reader-only at matched coverage (`+1.92%` delta; overlapping CIs).
+  - Reporting-half expert bounding-box localization (`n=51`): **76.47% pointing-game accuracy** (`39/51`), **49.02% IoU>=0.10 success rate**, mean IoU `0.1540`.
+  - Experiment 5 (MedGemma 4B 4-bit Claim Verifier): unsupported claim rate reduced from `87.5%` before verifier to **0.0%** after verifier.
+- **Chest HD Locked Test (`chest_hd_locked_test.json`, `n=7,721` scans) & Zero-Shot External NIH Test (`external_nih_test.json`, `n=25,596` scans):**
+  - `pneumothorax` (`pixel_mask_plus_bbox`): within-source AUROC `0.9475` (SIIM) / `0.9833` (VinBigData), mask+box Dice `0.5191`, border probe `0.5778`; external NIH AUROC `0.8829` (`68.37%` pointing game).
+  - `effusion` (`bbox_ellipse`): within-source AUROC `0.9831` (VinBigData), box Dice `0.6006`, border probe `0.7683`; external NIH AUROC `0.7752` (`69.93%` pointing game).
+  - `pneumonia` (`bbox_ellipse`): within-source AUROC `0.8966` (RSNA), box Dice `0.6528`, border probe `0.7099`; external NIH AUROC `0.7041` (`85.83%` pointing game, mean bbox IoU `0.4530`).
+- **Brain MRI HD Within-Source Locked Test (`brain_mri_locked_test.json`, `n=1,378` slices across `197` patient/cluster groups, `Tr-aug` synthetic copies purged):**
+  - Within-ISLES (`ischemic_stroke` vs `notumor` slices from ISLES): AUROC `0.8315` (`0.8516` relative), stroke pixel-mask Dice `0.5181`, false-positive stroke rate on normal ISLES slices `33.83%`.
+  - Within-BraTS (`glioma` vs `notumor` slices from BraTS): AUROC `0.8719`, glioma mask Dice `0.4405`.
+  - Within-2D (`glioma`, `meningioma`, `notumor`, `pituitary`): 4-class accuracy `85.95%` (Figshare tumor mask Dice: meningioma `0.8041`, pituitary `0.7937`, glioma `0.5600`).
+- **Safety & Boundary Suites:** Primary red-team `150/150 (100.0%)` (`artifacts/redteam_report.json`), independent audit red-team `130/130 (100.0%)` end-to-end (`70.8%` Layer 1 alone; `100.0%` homoglyph obfuscation; `artifacts/audit_redteam_report.json`), boundary fail-closed rate `1.0` (`11/11`, `artifacts/boundary_report.json`).
 
 ## Known Limitations
-- **Coverage:** 17/445 cases accepted as `MODEL-SUPPORTED` (3.82% coverage). The pipeline abstains on the other 96.18% (`INDETERMINATE`: 241, `NOT SUPPORTED`: 123, `SHORTCUT RISK`: 64).
-- **Precision comparison:** 94.12% (16/17) vs. 88.24% (15/17) with overlapping 95% CIs ([0.821, 1.0] vs. [0.725, 1.0]). The +5.88% delta is not statistically distinguishable at this sample size.
-- **Fill-method flip rate:** 20.82% (81/389 tested cases). Verdicts can change across `telea`, `gaussian_blur`, and `mean_fill` eraser methods, which the protocol flags as `INDETERMINATE` via the fill-spread gate.
-- **Rotated/inverted images:** 90°-rotated and colour-inverted X-rays currently pass the input gate (returned as `NOT SUPPORTED` or `INDETERMINATE`, not explicitly `REJECTED`). They should ideally be rejected at the gate stage.
-- **Localization quality:** Mean IoU 0.093, pointing-game accuracy 5.9% against expert boxes. Grad-CAM++ provides candidate regions only; localization quality is poor relative to annotated ground truth.
-- **No backup video:** A pre-recorded backup demo video does not yet exist in the repository.
-- **MedGemma 4B Claimant / U-Net Eraser:** These components (`vlm.py` adapter and U-Net eraser) are not implemented. `cleaner.py` (Capture Cleaner) exists but is deferred and imported nowhere.
-- **No real NIH data ingested:** Splits and manifests are defined but no real NIH CXR14 dataset has been ingested. `scripts/fetch_weights.py` is the only networked file.
+- **Selective abstention:** On the NIH locked test sample (`n=445`), the Judge accepts `11.69%` (`52/445`) as `MODEL-SUPPORTED` and abstains or rejects on `88.31%` (`NOT SUPPORTED`: `334`, `INDETERMINATE`: `42`, `SHORTCUT RISK`: `17`), with overlapping 95% CIs against Reader-only at matched coverage.
+- **Fill-method sensitivity:** `30.69%` verdict flip rate (`58/189` evaluated cases) across `telea`, `gaussian_blur`, and `mean_fill`, gated by the Judge's fill-spread check.
+- **Box vs. pixel-mask supervision:** On Chest HD, `effusion` and `pneumonia` spatial supervision comes from rasterized radiologist bounding boxes (`bbox_ellipse`), whereas only `pneumothorax` (SIIM-ACR) includes exact pixel-contour masks.
+- **Excluded findings & border framing cues:** `cardiomegaly` (`0.8506` test border-probe AUROC) and `aortic_enlargement` (`0.8649`) were excluded from `SUPPORTED_FINDINGS` because border/aspect-ratio framing cues inside VinBigData predicted them above the `0.80` cutoff; `infiltration` was excluded after dropping to `95 < 100` locked-test positives.
+- **Brain MRI modality scope:** Brain MRI mode provides within-source model scores, FPN/Grad-CAM++ candidate masks, and Telea counterfactual drops, not the full 7-gate thoracic Verification Judge; cortical MRI sequence differences (`T1ce` vs `DWI`) remain detectable inside parenchyma (`78.85%` at `14%` depth), so only within-source metrics are valid headlines.
 
 ## Install (Python 3.12, from the repository root)
 Create a virtual environment, then install **one** of:
@@ -87,4 +96,4 @@ uvicorn api.app:app --host 127.0.0.1 --port 8000
 ```powershell
 python -m pytest
 ```
-141 tests pass on Python 3.12 with the pinned dependencies in `requirements.txt`.
+188 tests pass on Python 3.12 with the pinned dependencies in `requirements.txt`.

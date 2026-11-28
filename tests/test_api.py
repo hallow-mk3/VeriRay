@@ -68,15 +68,33 @@ def test_api_multifinding_and_unsupported_finding_fail_closed(fake_reader, tmp_p
     app = create_app(manifest_dir=tmp_path / "runs", reader=fake_reader)
     client = TestClient(app)
 
-    for fid in ("effusion", "cardiomegaly"):
+    for fid in ("effusion", "pneumonia"):
         r = client.post(f"/verify?finding_id={fid}", files={"file": ("scan.png", _png(), "image/png")})
         assert r.status_code == 200
         vr = VerifyResponse.model_validate(r.json())
         assert vr.finding == fid
         assert vr.verdict in {"MODEL-SUPPORTED", "NOT SUPPORTED", "SHORTCUT RISK", "INDETERMINATE"}
 
-    bad = client.post("/verify?finding_id=glioma", files={"file": ("scan.png", _png(), "image/png")})
-    assert bad.status_code == 200
-    bvr = VerifyResponse.model_validate(bad.json())
-    assert bvr.verdict == "INDETERMINATE"
-    assert "UNSUPPORTED_FINDING" in bvr.reason_codes
+    for unsupported in ("glioma", "cardiomegaly", "infiltration"):
+        bad = client.post(f"/verify?finding_id={unsupported}", files={"file": ("scan.png", _png(), "image/png")})
+        assert bad.status_code == 200
+        bvr = VerifyResponse.model_validate(bad.json())
+        assert bvr.verdict == "INDETERMINATE"
+        assert "UNSUPPORTED_FINDING" in bvr.reason_codes
+
+    # Multi-finding /chat preserves finding_id instead of fabricating pneumothorax
+    c_pna = ChatResponseSchema.model_validate(
+        client.post(
+            "/chat",
+            json={
+                "question": "What is the verdict?",
+                "finding_id": "pneumonia",
+                "verdict": "MODEL-SUPPORTED",
+                "reason_codes": ["JUDGE_ALL_GATES_PASSED"],
+                "evidence_items": {"E01_MODEL_SCORE_RAW": 0.91, "E02_VERDICT": "MODEL-SUPPORTED"},
+            },
+        ).json()
+    )
+    assert c_pna.allowed
+    assert "pneumonia" in c_pna.answer.lower()
+    assert "pneumothorax" not in c_pna.answer.lower()

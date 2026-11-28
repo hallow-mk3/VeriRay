@@ -54,7 +54,7 @@ def _load_nih_trained_reader(device: str) -> Reader:
 
 def main() -> int:
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    reader = _load_nih_trained_reader(device)
+    reader = Reader.load_for_finding(ROOT / "models", "pneumothorax", device=device)
     rows = load_manifest(ROOT / "data" / "manifests" / "nih_manifest.csv")
     val_rows = select_split(rows, "val")
     index = _index_images(Path(r"C:\Users\swast\nih"))

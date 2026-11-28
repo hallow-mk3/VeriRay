@@ -23,12 +23,28 @@ from veriray.contracts import RESEARCH_DISCLAIMER, EvidenceRecord, Verdict, vali
 
 _MAX_PROMPT_LEN: int = 500
 
-# Confusable-to-ASCII skeleton map (Cyrillic homoglyphs + fullwidth ASCII).
+# Confusable-to-ASCII skeleton map (Cyrillic, Ukrainian, Greek/Coptic, IPA/Latin lookalikes + fullwidth ASCII).
 _CONFUSABLE_MAP: dict[int, str] = {
-    # Cyrillic homoglyphs
-    0x0430: "a", 0x0435: "e", 0x043E: "o", 0x0440: "p", 0x0441: "c",
-    0x0456: "i", 0x0410: "A", 0x0415: "E", 0x041E: "O", 0x0420: "P",
-    0x0421: "C", 0x0406: "I",
+    # Cyrillic + Ukrainian/Extended Cyrillic homoglyphs
+    0x0430: "a", 0x0432: "b", 0x0433: "r", 0x0435: "e", 0x0454: "e",
+    0x0456: "i", 0x0457: "i", 0x0458: "j", 0x043A: "k", 0x043C: "m",
+    0x043D: "h", 0x043E: "o", 0x0440: "p", 0x0441: "c", 0x0442: "t",
+    0x0443: "y", 0x0445: "x", 0x0455: "s", 0x0501: "d", 0x051B: "q",
+    0x051D: "w", 0x04BB: "h", 0x04CF: "l",
+    0x0410: "A", 0x0412: "B", 0x0415: "E", 0x0404: "E", 0x0406: "I",
+    0x0407: "I", 0x0408: "J", 0x041A: "K", 0x041C: "M", 0x041D: "H",
+    0x041E: "O", 0x0420: "P", 0x0421: "C", 0x0422: "T", 0x0423: "Y",
+    0x0425: "X", 0x0405: "S",
+    # Greek & Coptic homoglyphs (NFKC does not fold cross-script Greek to Latin)
+    0x03B1: "a", 0x03B2: "b", 0x03B5: "e", 0x03B7: "n", 0x03B9: "i",
+    0x03BA: "k", 0x03BD: "v", 0x03BF: "o", 0x03C1: "p", 0x03C4: "t",
+    0x03C5: "u", 0x03C7: "x", 0x03F5: "e", 0x03F2: "c",
+    0x0391: "A", 0x0392: "B", 0x0395: "E", 0x0396: "Z", 0x0397: "H",
+    0x0399: "I", 0x039A: "K", 0x039C: "M", 0x039D: "N", 0x039F: "O",
+    0x03A1: "P", 0x03A4: "T", 0x03A5: "Y", 0x03A7: "X",
+    # Common Latin/IPA small-cap & script lookalikes
+    0x0251: "a", 0x0261: "g", 0x0269: "i", 0x026A: "i", 0x1D0F: "o",
+    0x1D1C: "u", 0x1D20: "v", 0x0131: "i",
     # Fullwidth ASCII (U+FF01 … U+FF5E → ! … ~)
     **{0xFF01 + i: chr(0x21 + i) for i in range(94)},
 }
@@ -70,6 +86,8 @@ _DRUG_OR_DOSAGE_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     for p in (
         r"\b(?:mg|mcg|ml|iu|tablet|tablets|capsule|capsules|pill|pills|dose|dosage|prescribe|prescription)\b",
         r"\b(?:aspirin|ibuprofen|paracetamol|acetaminophen|amoxicillin|azithromycin|prednisone|steroid|antibiotic|heparin|furosemide|morphine|insulin|albuterol|inhaler)\b",
+        r"\b(?:alteplase|tenecteplase|tpa|warfarin|apixaban|rivaroxaban|clopidogrel|enoxaparin|levetiracetam|keppra|temozolomide|dexamethasone|mannitol|phenytoin|valproate|bevacizumab)\b",
+        r"\b(?:isoniazid|rifampin|rifampicin|ethambutol|pyrazinamide|ceftriaxone|vancomycin|lisinopril|metoprolol|norepinephrine|epinephrine)\b",
         r"\b(?:take|administer|inject|start)\s+\d+\s*(?:mg|ml|times|pills?)\b",
     )
 )
@@ -80,7 +98,9 @@ _CLINICAL_ACTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         r"\byou\s+(?:have|definitely\s+have|likely\s+have|suffer\s+from|do\s+not\s+have)\b",
         r"\b(?:the\s+)?patient\s+(?:has|needs|requires|should\s+receive|is\s+(?:healthy|normal|disease[\s-]free))\b",
         r"\b(?:should\s+i|what\s+should\s+i|do\s+i\s+need|do\s+i\s+have)\b",
-        r"\b(?:chest\s+tube\s+(?:insertion|placement)|needle\s+decompression|thoracostomy|surgery|hospitalize|go\s+to\s+(?:the\s+)?er)\b",
+        r"\b(?:am\s+i|is\s+(?:the\s+)?patient)\s+(?:safe|okay|ok|fine|healthy|normal|out\s+of\s+danger|in\s+danger|going\s+to\s+(?:die|be\s+ok|survive))\b",
+        r"\b(?:can\s+i|safe\s+to)\s+(?:safely\s+)?(?:go\s+home|be\s+discharged|skip\s+the\s+(?:doctor|hospital|er)|wait\s+until\s+tomorrow)\b",
+        r"\b(?:chest\s+tube\s+(?:insertion|placement)|needle\s+decompression|thoracostomy|craniotomy|thrombectomy|thrombolysis|chemotherapy|radiotherapy|radiation\s+therapy|biopsy|intubat(?:e|ion)|surgery|hospitalize|go\s+to\s+(?:the\s+)?er)\b",
         r"\b(?:treat|cure|medicine|medication|therapy|prognosis|clinical\s+management)\b",
     )
 )
@@ -253,8 +273,9 @@ def answer_chat_question(
 
             parts: list[str] = []
             cites: list[str] = []
+            finding_disp = evidence.finding_id.replace("_", " ")
             if any(k in q for k in ("verdict", "why", "evidence")):
-                parts.append(f"The verdict for pneumothorax is {evidence.verdict.value} [E02_VERDICT].")
+                parts.append(f"The verdict for {finding_disp} is {evidence.verdict.value} [E02_VERDICT].")
                 cites.append("E02_VERDICT")
             if any(k in q for k in ("score", "drop", "why", "evidence")):
                 parts.append(f"The uncalibrated Reader model score was {items.get('E01_MODEL_SCORE_RAW')} [E01_MODEL_SCORE_RAW].")

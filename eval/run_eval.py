@@ -89,7 +89,7 @@ def _age_band(age_str: str) -> str:
     return "70+"
 
 
-def _load_bboxes(bbox_csv: Path | None) -> dict[str, list[tuple[float, float, float, float]]]:
+def _load_bboxes(bbox_csv: Path | None, target_size: float = 224.0) -> dict[str, list[tuple[float, float, float, float]]]:
     if bbox_csv is None or not bbox_csv.is_file():
         return {}
     out: dict[str, list[tuple[float, float, float, float]]] = {}
@@ -100,8 +100,8 @@ def _load_bboxes(bbox_csv: Path | None) -> dict[str, list[tuple[float, float, fl
             if len(row) < 6 or row[1].strip() != "Pneumothorax":
                 continue
             x, y, w, h = (float(row[2]), float(row[3]), float(row[4]), float(row[5]))
-            # Scale from 1024x1024 NIH coordinates to 224x224 model space
-            s = 224.0 / 1024.0
+            # Scale from 1024x1024 NIH coordinates to target model space (224 or 512)
+            s = float(target_size) / 1024.0
             out.setdefault(row[0].strip(), []).append((x * s, y * s, (x + w) * s, (y + h) * s))
     return out
 
